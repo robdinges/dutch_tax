@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dutch Tax Calculator - .NET Web GUI</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <header class="header-section">
+            <div class="container-lg">
+                <div class="header-content">
+                    <h1>🇳🇱 Dutch Tax Calculator 2025 (.NET)</h1>
+                    <p class="text-muted">Calculate your Box1 (income) and Box3 (wealth) taxes</p>
+                </div>
+            </div>
+        </header>
+
+        <main class="container-lg py-5">
+            <div class="row">
+                <div class="col-lg-6">
+                    <div class="form-section">
+                        <h2 class="section-title">📋 Tax Information</h2>
+                        <form id="taxForm">
+                            <div class="mb-3">
+                                <label for="householdId" class="form-label">Household ID</label>
+                                <input type="text" class="form-control" id="householdId" placeholder="e.g., HH2025001" value="HH2025001">
+                                <small class="text-muted">Optional identifier for your household</small>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="memberCount" class="form-label">Number of Household Members</label>
+                                <select class="form-select" id="memberCount">
+                                    <option value="1" selected>1 Person</option>
+                                    <option value="2">2 People (Couple/Family)</option>
+                                    <option value="3">3 People</option>
+                                    <option value="4">4 People</option>
+                                </select>
+                            </div>
+
+                            <div id="membersContainer"></div>
+
+                            <div class="card mt-4 allocation-card">
+                                <div class="card-header">
+                                    <h5 class="mb-0">💰 Box3 Allocation Strategy</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label for="allocationStrategy" class="form-label">Allocation Method</label>
+                                        <select class="form-select" id="allocationStrategy">
+                                            <option value="EQUAL" selected>Equal (50-50 split)</option>
+                                            <option value="PROPORTIONAL">Proportional (by income)</option>
+                                            <option value="CUSTOM">Custom Percentages</option>
+                                        </select>
+                                        <small class="text-muted">How household assets are allocated for Box3 tax</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="d-grid gap-2 mt-4">
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <span class="spinner-border spinner-border-sm d-none me-2" id="loadingSpinner" role="status" aria-hidden="true"></span>
+                                    Calculate Taxes
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="col-lg-6">
+                    <div id="resultsSection" style="display: none;">
+                        <div class="results-section">
+                            <h2 class="section-title">📊 Tax Calculation Results</h2>
+
+                            <div class="summary-cards">
+                                <div class="summary-card total-tax">
+                                    <div class="card-label">Total Tax Due</div>
+                                    <div class="card-amount" id="totalTaxAmount">€0.00</div>
+                                </div>
+                                <div class="summary-card effective-rate">
+                                    <div class="card-label">Effective Rate</div>
+                                    <div class="card-amount" id="effectiveRateAmount">0.00%</div>
+                                </div>
+                            </div>
+
+                            <div class="card mt-4">
+                                <div class="card-header">
+                                    <h5 class="mb-0">📋 Box1 - Income Tax</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div id="box1Details"></div>
+                                    <hr>
+                                    <div class="row">
+                                        <div class="col-6"><strong>Box1 Total:</strong></div>
+                                        <div class="col-6 text-end"><strong id="box1Total">€0.00</strong></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card mt-3">
+                                <div class="card-header">
+                                    <h5 class="mb-0">💼 Box3 - Wealth Tax</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row mb-3">
+                                        <div class="col-6"><span>Total Assets:</span></div>
+                                        <div class="col-6 text-end"><strong id="totalAssets">€0.00</strong></div>
+                                    </div>
+                                    <div class="row mb-3">
+                                        <div class="col-6"><span>Tax Rate:</span></div>
+                                        <div class="col-6 text-end"><strong id="box3Rate">36.00%</strong></div>
+                                    </div>
+                                    <div id="box3Allocation"></div>
+                                    <hr>
+                                    <div class="row">
+                                        <div class="col-6"><strong>Box3 Total:</strong></div>
+                                        <div class="col-6 text-end"><strong id="box3Total">€0.00</strong></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card mt-3 summary-total">
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-6"><h5>Total Tax Due</h5></div>
+                                        <div class="col-6 text-end"><h5 id="finalTotalTax">€0.00</h5></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button type="button" class="btn btn-secondary w-100 mt-3" id="clearBtn">Clear Results</button>
+                        </div>
+                    </div>
+
+                    <div id="emptyState" class="empty-state-section">
+                        <div class="empty-state-icon">📊</div>
+                        <h3>No Results Yet</h3>
+                        <p>Fill in the form on the left and click "Calculate Taxes" to see your tax calculation here.</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="footer-section mt-5">
+            <div class="container-lg">
+                <p>For official tax purposes, consult the Dutch Tax Authority (Belastingdienst)</p>
+                <small>This calculator is for informational purposes only</small>
+            </div>
+        </footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/app.js"></script>
+</body>
+</html>
