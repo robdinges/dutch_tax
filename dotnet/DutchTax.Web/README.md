@@ -4,7 +4,7 @@ ASP.NET Core versie van de Dutch Tax Calculator met dezelfde frontend-flow en AP
 
 ## Vereisten
 
-- .NET SDK 8.0 of hoger
+- .NET SDK 10.0 of hoger
 
 ## Lokaal draaien
 

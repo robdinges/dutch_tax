@@ -4,8 +4,8 @@ Deze handleiding legt uit hoe je `dotnet/DutchTax.Web` live zet.
 
 ## 1) Eenmalige voorbereiding
 
-1. Installeer .NET 8 SDK op je ontwikkelmachine.
-2. Installeer .NET 8 Hosting Bundle op je server (Windows/IIS) of .NET Runtime 8 op Linux.
+1. Installeer .NET 10 SDK op je ontwikkelmachine.
+2. Installeer .NET 10 Hosting Bundle op je server (Windows/IIS) of .NET Runtime 10 op Linux.
 3. Zorg dat poort 80/443 open staat en je domein naar de server wijst.
 
 ## 2) Publiceren vanaf je Mac
