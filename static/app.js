@@ -636,10 +636,13 @@ const app = {
 
         const savingsRate = (result.box3_savings_return_rate || 0).toFixed(2);
         const investmentRate = (result.box3_investment_return_rate || 0).toFixed(2);
+        const correctionFactor = result.box3_correction_factor || 0;
+        const correctionPct = (correctionFactor * 100).toFixed(2);
         document.getElementById('box3SavingsAssets').textContent = this.formatCurrency(result.box3_savings_assets || 0);
         document.getElementById('box3InvestmentAssets').textContent = this.formatCurrency(result.box3_investment_assets || 0);
-        document.getElementById('box3SavingsDeemedReturn').textContent = `${this.formatCurrency(result.box3_savings_deemed_return || 0)} (${savingsRate}% fictief rendement)`;
-        document.getElementById('box3InvestmentDeemedReturn').textContent = `${this.formatCurrency(result.box3_investment_deemed_return || 0)} (${investmentRate}% fictief rendement)`;
+        document.getElementById('box3SavingsDeemedReturn').textContent = `${this.formatCurrency(result.box3_corrected_savings_deemed_return || 0)} (na correctie, ${savingsRate}% fictief rendement)`;
+        document.getElementById('box3InvestmentDeemedReturn').textContent = `${this.formatCurrency(result.box3_corrected_investment_deemed_return || 0)} (na correctie, ${investmentRate}% fictief rendement)`;
+        document.getElementById('box3CorrectionFactor').textContent = `${correctionPct}% (gecorrigeerd_vermogen / totaal_vermogen)`;
 
         // Update process flow details
         document.getElementById('box1TaxableIncomeTotal').textContent = this.formatCurrency(result.box1_taxable_income_total);
