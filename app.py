@@ -166,7 +166,7 @@ def calculate_tax():
         total_box1 = Decimal('0')
         
         for person in household.members:
-            box1_tax = person.compute_box1_tax(config.tax_brackets)
+            box1_tax = person.compute_box1_tax(config.box1_brackets)
             box1_breakdown[person.name] = {
                 'gross_income': float(person.total_gross_income()),
                 'deductions': float(person.total_deductions()),
@@ -174,7 +174,7 @@ def calculate_tax():
                 'box1_tax': float(box1_tax),
                 'tax_credits': float(person.total_tax_credits()),
                 'withheld_tax': float(person.withheld_tax),
-                'net_liability': float(person.compute_net_tax_liability(config.tax_brackets)),
+                'net_liability': float(person.compute_net_tax_liability(config.box1_brackets)),
                 'assets': float(person.total_asset_value()),
             }
             total_box1 += box1_tax
@@ -182,12 +182,13 @@ def calculate_tax():
         # Calculate Box3
         strategy = AllocationStrategy[data.get('allocation_strategy', 'EQUAL')]
         box3_tax = household.compute_box3_tax(config.box3_rate)
-        allocation = household.allocate_box3_between_partners(strategy)
+        allocation = household.allocate_box3_between_partners(config.box3_rate, strategy)
         
         # Total calculation
-        total_tax = household.compute_total_tax(config.tax_brackets, config.box3_rate, strategy)
-        total_assets = household.compute_total_asset_value()
-        total_income = household.compute_total_gross_income()
+        total_tax_per_member = household.compute_total_tax(config.box1_brackets, config.box3_rate, strategy)
+        total_tax = sum(total_tax_per_member.values(), Decimal('0'))
+        total_assets = household.total_asset_value()
+        total_income = household.total_gross_income()
         
         # Calculate effective tax rate
         if total_income > 0:
@@ -210,7 +211,7 @@ def calculate_tax():
             'total_income': float(total_income),
             'effective_tax_rate': round(effective_rate, 2),
             'general_tax_credit': float(config.general_tax_credit),
-            'tax_year': config.tax_year,
+            'tax_year': config.year,
             'input_saved_to': saved_file,
         })
         
