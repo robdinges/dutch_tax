@@ -8,6 +8,8 @@ A production-ready Python domain model and interactive form for the Dutch tax sy
 ✅ **Realistic Tax Rates** - 2023-2025 Dutch tax brackets from Belastingdienst  
 ✅ **Interactive Tax Form** - User-friendly command-line form  
 ✅ **Multiple Income Sources** - Support for employment, self-employment, rental, pension, etc.  
+✅ **Eigenwoningforfait 2025** - Automatic Box1 addition for owner-occupied homes (WOZ-based)  
+✅ **JSON Input Logging** - Web API stores submitted form payloads in `submissions/`  
 ✅ **Box3 Wealth Tax** - Flexible allocation strategies (equal, proportional, custom)  
 ✅ **Comprehensive Examples** - Demos for different scenarios  
 ✅ **Easy to Extend** - Add new tax years with minimal code  
@@ -21,6 +23,7 @@ tax_brackets.py          # Tax configurations for 2023-2025
 tax_form.py              # Interactive command-line form
 form_demo.py             # Pre-populated form demonstrations
 examples.py              # Usage examples for all features
+test_eigenwoningforfait.py  # Unit and integration tests for eigenwoningforfait
 CONFIGURATION_GUIDE.md   # How to maintain and update tax rates
 FUNCTIONEEL_EN_OBJECTMODEL_PYTHON_NL.md  # Functioneel ontwerp en objectmodel (Python)
 ```
@@ -32,6 +35,10 @@ FUNCTIONEEL_EN_OBJECTMODEL_PYTHON_NL.md  # Functioneel ontwerp en objectmodel (P
 ```bash
 python3 tax_form.py
 ```
+
+Voor de webinterface (`python3 app.py`) kun je ook eerder opgeslagen invoer opnieuw laden:
+1. Kies een JSON-bestand uit `submissions/` bij **Load Saved Input (JSON)**.
+2. Klik op **Load JSON Into Form** om het formulier automatisch te vullen.
 
 This launches an interactive form that guides you through:
 - Creating household members
@@ -180,6 +187,7 @@ for year in sorted(TAX_CONFIGS.keys()):
 - **Deduction**: Tax deductible expenses
 - **TaxCredit**: Tax credits (reduces tax liability)
 - **TaxBracket**: Progressive tax bracket definition
+- **OwnHome**: Primary residence data used for eigenwoningforfait in Box1
 - **TaxYearConfig**: Complete tax configuration for a year
 
 ### Enums
@@ -198,6 +206,25 @@ Taxable Income = Gross Income - Deductions
 Box1 Tax = Sum of (income in bracket × bracket rate)
 Tax After Credits = Box1 Tax - Tax Credits
 Net Tax Liability = Tax After Credits - Withheld Tax
+```
+
+### Eigenwoningforfait (2025)
+
+For owner-occupied homes (eigen woning), the model supports the 2025 Box1 addition:
+
+- Thresholds: `[0, 12_500, 25_000, 50_000, 75_000, 1_330_000]`
+- Percentages: `[0.0, 0.0010, 0.0020, 0.0025, 0.0035]`
+- Above €1,330,000: `4,655 + 2.35% * (WOZ - 1,330,000)`
+- Optional partial-year ownership via `period_fraction` (`0.0` to `1.0`)
+
+Implementation is available through:
+- `OwnHome` on `Person`
+- `calculate_eigenwoningforfait(woz_value, period_fraction=1)`
+
+In Box1, taxable income becomes:
+
+```text
+Taxable Income = Gross Income + Eigenwoningforfait - Deductions
 ```
 
 ### Box3 (Wealth Tax)

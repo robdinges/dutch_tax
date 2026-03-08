@@ -34,6 +34,8 @@ const app = {
         this.allocationStrategy = document.getElementById('allocationStrategy');
         this.loadingSpinner = document.getElementById('loadingSpinner');
         this.clearBtn = document.getElementById('clearBtn');
+        this.loadJsonFile = document.getElementById('loadJsonFile');
+        this.loadJsonBtn = document.getElementById('loadJsonBtn');
     },
 
     // Load income and asset types from API
@@ -70,6 +72,95 @@ const app = {
 
         this.clearBtn.addEventListener('click', () => {
             this.clearResults();
+        });
+
+        if (this.loadJsonBtn) {
+            this.loadJsonBtn.addEventListener('click', () => {
+                this.loadJsonIntoForm();
+            });
+        }
+    },
+
+    // Load a previously saved JSON submission into the current form.
+    async loadJsonIntoForm() {
+        if (!this.loadJsonFile || !this.loadJsonFile.files || this.loadJsonFile.files.length === 0) {
+            alert('Selecteer eerst een JSON-bestand.');
+            return;
+        }
+
+        const file = this.loadJsonFile.files[0];
+        try {
+            const text = await file.text();
+            const parsed = JSON.parse(text);
+
+            // Accept both wrapped format ({ saved_at, data }) and raw payload.
+            const payload = parsed.data ? parsed.data : parsed;
+            this.populateFormFromData(payload);
+            alert('JSON succesvol geladen in het formulier.');
+        } catch (error) {
+            console.error('✗ Error loading JSON:', error);
+            alert('Kon JSON niet laden: ' + error.message);
+        }
+    },
+
+    populateFormFromData(data) {
+        if (!data || !Array.isArray(data.members)) {
+            throw new Error('Ongeldig JSON-formaat: members ontbreekt.');
+        }
+
+        const householdId = data.household_id || 'WEB_001';
+        const strategy = data.allocation_strategy || 'EQUAL';
+        const members = data.members;
+
+        document.getElementById('householdId').value = householdId;
+        this.allocationStrategy.value = strategy;
+
+        const memberCount = Math.max(1, members.length);
+        this.memberCount.value = String(memberCount);
+        this.renderMembers(memberCount);
+
+        members.forEach((member, index) => {
+            const i = index + 1;
+
+            const fullNameEl = document.getElementById(`fullName-${i}`);
+            const bsnEl = document.getElementById(`bsn-${i}`);
+            const residencyEl = document.getElementById(`residency-${i}`);
+            const withheldEl = document.getElementById(`withheld-${i}`);
+
+            if (fullNameEl) fullNameEl.value = member.full_name || '';
+            if (bsnEl) bsnEl.value = member.bsn || '';
+            if (residencyEl) residencyEl.value = member.residency_status || 'RESIDENT';
+            if (withheldEl) withheldEl.value = member.withheld_tax || 0;
+
+            if (Array.isArray(member.incomes)) {
+                member.incomes.forEach((income) => {
+                    this.addIncome(i);
+                    const incomeRows = document.querySelectorAll(`#incomes-${i} .item-row`);
+                    const row = incomeRows[incomeRows.length - 1];
+                    row.querySelector('[data-type="income-type"]').value = income.type || 'EMPLOYMENT';
+                    row.querySelector('[data-type="income-amount"]').value = income.amount || '';
+                });
+            }
+
+            if (Array.isArray(member.deductions)) {
+                member.deductions.forEach((deduction) => {
+                    this.addDeduction(i);
+                    const deductionRows = document.querySelectorAll(`#deductions-${i} .item-row`);
+                    const row = deductionRows[deductionRows.length - 1];
+                    row.querySelector('[data-type="deduction-desc"]').value = deduction.description || '';
+                    row.querySelector('[data-type="deduction-amount"]').value = deduction.amount || '';
+                });
+            }
+
+            if (Array.isArray(member.assets)) {
+                member.assets.forEach((asset) => {
+                    this.addAsset(i);
+                    const assetRows = document.querySelectorAll(`#assets-${i} .item-row`);
+                    const row = assetRows[assetRows.length - 1];
+                    row.querySelector('[data-type="asset-type"]').value = asset.type || 'SAVINGS';
+                    row.querySelector('[data-type="asset-value"]').value = asset.value || '';
+                });
+            }
         });
     },
 

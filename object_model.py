@@ -18,6 +18,55 @@ from decimal import Decimal
 from abc import ABC, abstractmethod
 
 
+# 2025 Eigenwoningforfait (Belastingdienst) parameters.
+EIGENWONINGFORFAIT_THRESHOLDS = [0, 12_500, 25_000, 50_000, 75_000, 1_330_000]
+EIGENWONINGFORFAIT_PERCENTS = [0.0, 0.0010, 0.0020, 0.0025, 0.0035]
+EIGENWONINGFORFAIT_UPPER_BASE_FIXED = 4655
+EIGENWONINGFORFAIT_UPPER_RATE = 0.0235
+
+# Explicit 2025 aliases for clarity in multi-year extensions.
+EIGENWONINGFORFAIT_THRESHOLDS_2025 = EIGENWONINGFORFAIT_THRESHOLDS
+EIGENWONINGFORFAIT_PERCENTS_2025 = EIGENWONINGFORFAIT_PERCENTS
+EIGENWONINGFORFAIT_UPPER_BASE_FIXED_2025 = EIGENWONINGFORFAIT_UPPER_BASE_FIXED
+EIGENWONINGFORFAIT_UPPER_RATE_2025 = EIGENWONINGFORFAIT_UPPER_RATE
+
+
+def calculate_eigenwoningforfait(woz_value: float, period_fraction: float = 1) -> float:
+    """
+    Calculate the 2025 eigenwoningforfait amount for Box1.
+
+    Args:
+        woz_value: WOZ value of the primary residence.
+        period_fraction: Fraction of the year the home was owned (0.0 - 1.0).
+
+    Returns:
+        Eigenwoningforfait amount as float.
+    """
+    if woz_value < 0:
+        raise ValueError("WOZ value cannot be negative")
+    if period_fraction < 0 or period_fraction > 1:
+        raise ValueError("period_fraction must be between 0.0 and 1.0")
+
+    thresholds = EIGENWONINGFORFAIT_THRESHOLDS
+    percents = EIGENWONINGFORFAIT_PERCENTS
+
+    if woz_value <= thresholds[-1]:
+        band_index = 0
+        for index, lower_bound in enumerate(thresholds[:-1]):
+            if woz_value >= lower_bound:
+                band_index = index
+            else:
+                break
+        forfait = woz_value * percents[band_index]
+    else:
+        forfait = (
+            EIGENWONINGFORFAIT_UPPER_BASE_FIXED
+            + EIGENWONINGFORFAIT_UPPER_RATE * (woz_value - thresholds[-1])
+        )
+
+    return forfait * period_fraction
+
+
 # ============================================================================
 # ENUMS
 # ============================================================================
@@ -111,6 +160,19 @@ class TaxCredit:
 
 
 @dataclass
+class OwnHome:
+    """Represents a primary residence for eigenwoningforfait purposes."""
+    woz_value: float
+    period_fraction: float = 1.0
+
+    def __post_init__(self):
+        if self.woz_value < 0:
+            raise ValueError("WOZ value cannot be negative")
+        if self.period_fraction < 0 or self.period_fraction > 1:
+            raise ValueError("period_fraction must be between 0.0 and 1.0")
+
+
+@dataclass
 class TaxBracket:
     """Represents a tax bracket for progressive taxation."""
     lower_bound: Decimal  # Income threshold where this bracket starts
@@ -158,6 +220,7 @@ class Person:
     assets: List[Asset] = field(default_factory=list)
     deductions: List[Deduction] = field(default_factory=list)
     tax_credits: List[TaxCredit] = field(default_factory=list)
+    own_home: Optional[OwnHome] = None
     withheld_tax: Decimal = Decimal(0)
     
     def __post_init__(self):
@@ -190,11 +253,21 @@ class Person:
         """
         Compute taxable income for Box1 (income tax).
         
-        Formula: Gross Income - Deductions = Taxable Income
+        Formula: Gross Income + Eigenwoningforfait - Deductions = Taxable Income
         """
         gross = self.total_gross_income()
+        eigenwoningforfait = Decimal(0)
+        if self.own_home is not None:
+            eigenwoningforfait = Decimal(
+                str(
+                    calculate_eigenwoningforfait(
+                        self.own_home.woz_value,
+                        self.own_home.period_fraction,
+                    )
+                )
+            )
         deductions = self.total_deductions()
-        taxable = max(Decimal(0), gross - deductions)
+        taxable = max(Decimal(0), gross + eigenwoningforfait - deductions)
         return taxable
     
     def compute_box1_tax(self, brackets: List[TaxBracket]) -> Decimal:

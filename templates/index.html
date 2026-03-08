@@ -67,6 +67,30 @@
                                 </div>
                             </div>
 
+                            <!-- Load Saved JSON -->
+                            <div class="card mt-3">
+                                <div class="card-header">
+                                    <h5 class="mb-0">📂 Load Saved Input (JSON)</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-2">
+                                        <label for="loadJsonFile" class="form-label">JSON File</label>
+                                        <input
+                                            type="file"
+                                            class="form-control"
+                                            id="loadJsonFile"
+                                            accept="application/json,.json"
+                                        >
+                                    </div>
+                                    <button type="button" class="btn btn-outline-secondary" id="loadJsonBtn">
+                                        Load JSON Into Form
+                                    </button>
+                                    <small class="text-muted d-block mt-2">
+                                        Supports files from the `submissions/` folder.
+                                    </small>
+                                </div>
+                            </div>
+
                             <!-- Submit Button -->
                             <div class="d-grid gap-2 mt-4">
                                 <button type="submit" class="btn btn-primary btn-lg">
@@ -81,7 +105,7 @@
 
                 <!-- Results Section -->
                 <div class="col-lg-6">
-                    <div id="resultsSection" style="display: none;">
+                    <div id="resultsSection">
                         <div class="results-section">
                             <h2 class="section-title">📊 Tax Calculation Results</h2>
 

@@ -6,16 +6,35 @@ A Flask-based web application for calculating Dutch income and wealth taxes.
 
 from flask import Flask, render_template, request, jsonify
 from decimal import Decimal
+from datetime import datetime
+import json
+from pathlib import Path
 import traceback
 
 from object_model import (
-    Person, Household, IncomeSource, Asset, Deduction, TaxCredit,
+    Person, Household, IncomeSource, Asset, Deduction, TaxCredit, OwnHome,
     IncomeSourceType, AssetType, ResidencyStatus, AllocationStrategy
 )
 from tax_brackets import get_latest_tax_config
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'dutch-tax-calculator-secret'
+
+
+def save_input_data_to_json(data: dict) -> str:
+    """Persist submitted form data to a timestamped JSON file."""
+    submissions_dir = Path(__file__).parent / "submissions"
+    submissions_dir.mkdir(parents=True, exist_ok=True)
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    file_path = submissions_dir / f"input_{timestamp}.json"
+
+    payload = {
+        "saved_at": datetime.now().isoformat(),
+        "data": data,
+    }
+    file_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return str(file_path)
 
 
 @app.route('/')
@@ -70,6 +89,7 @@ def calculate_tax():
     """Calculate tax based on form submission."""
     try:
         data = request.get_json()
+        saved_file = save_input_data_to_json(data)
         
         # Get tax configuration for 2025
         config = get_latest_tax_config()
@@ -86,6 +106,13 @@ def calculate_tax():
                     bsn=member_data.get('bsn', ''),
                     residency_status=ResidencyStatus[member_data.get('residency_status', 'RESIDENT')]
                 )
+
+                own_home = member_data.get('own_home')
+                if own_home:
+                    person.own_home = OwnHome(
+                        woz_value=float(own_home.get('woz_value', 0)),
+                        period_fraction=float(own_home.get('period_fraction', 1)),
+                    )
                 
                 # Add income sources
                 for income in member_data.get('incomes', []):
@@ -184,6 +211,7 @@ def calculate_tax():
             'effective_tax_rate': round(effective_rate, 2),
             'general_tax_credit': float(config.general_tax_credit),
             'tax_year': config.tax_year,
+            'input_saved_to': saved_file,
         })
         
     except Exception as e:
