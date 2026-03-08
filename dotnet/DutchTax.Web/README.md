@@ -14,6 +14,17 @@ dotnet restore
 dotnet run
 ```
 
+Of vanuit de repository root met de macOS-workaround in één commando:
+
+```bash
+./run-dotnet.sh
+```
+
+Let op: gebruik `./run-dotnet.sh` (met `./`).
+
+Uitgebreide NL handleiding:
+- `dotnet/LOCAL_RUN_NL.md`
+
 Open daarna:
 - `http://localhost:5000` of
 - `https://localhost:5001`

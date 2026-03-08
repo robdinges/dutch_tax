@@ -1,0 +1,28 @@
+#!/usr/bin/expect -f
+set timeout -1
+
+set host [lindex $argv 0]
+set port [lindex $argv 1]
+set user [lindex $argv 2]
+set pass [lindex $argv 3]
+set remote [lindex $argv 4]
+set local [lindex $argv 5]
+
+spawn sftp -P $port $user@$host
+expect {
+  -re "Are you sure you want to continue connecting.*" { send "yes\r"; exp_continue }
+  -re {[Pp]assword:} { send "$pass\r" }
+}
+expect "sftp>"
+send "-mkdir $remote\r"
+expect "sftp>"
+send "cd $remote\r"
+expect "sftp>"
+send "lcd $local\r"
+expect "sftp>"
+send "put -r ./*\r"
+expect "sftp>"
+send "ls -la\r"
+expect "sftp>"
+send "bye\r"
+expect eof
