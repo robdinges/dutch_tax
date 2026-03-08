@@ -611,6 +611,36 @@ const app = {
         document.getElementById('box3Allocation').innerHTML = allocationHtml;
         document.getElementById('box3Total').textContent = this.formatCurrency(result.box3_tax);
 
+        // Show how Box1 brackets were applied in the final settlement section.
+        const bracketRows = result.box1_brackets_applied || [];
+        let bracketHtml = '';
+        if (bracketRows.length === 0) {
+            bracketHtml = `
+                <div class="member-detail-row">
+                    <span class="member-detail-label">Geen belastbaar Box1-inkomen</span>
+                    <span class="member-detail-value">${this.formatCurrency(0)}</span>
+                </div>
+            `;
+        } else {
+            bracketRows.forEach((row) => {
+                const ratePct = (row.rate * 100).toFixed(2);
+                bracketHtml += `
+                    <div class="member-detail-row">
+                        <span class="member-detail-label">${row.description} (${ratePct}% over ${this.formatCurrency(row.taxable_amount)})</span>
+                        <span class="member-detail-value">${this.formatCurrency(row.tax_amount)}</span>
+                    </div>
+                `;
+            });
+        }
+        document.getElementById('box1BracketApplication').innerHTML = bracketHtml;
+
+        const savingsRate = (result.box3_savings_return_rate || 0).toFixed(2);
+        const investmentRate = (result.box3_investment_return_rate || 0).toFixed(2);
+        document.getElementById('box3SavingsAssets').textContent = this.formatCurrency(result.box3_savings_assets || 0);
+        document.getElementById('box3InvestmentAssets').textContent = this.formatCurrency(result.box3_investment_assets || 0);
+        document.getElementById('box3SavingsDeemedReturn').textContent = `${this.formatCurrency(result.box3_savings_deemed_return || 0)} (${savingsRate}% fictief rendement)`;
+        document.getElementById('box3InvestmentDeemedReturn').textContent = `${this.formatCurrency(result.box3_investment_deemed_return || 0)} (${investmentRate}% fictief rendement)`;
+
         // Update process flow details
         document.getElementById('box1TaxableIncomeTotal').textContent = this.formatCurrency(result.box1_taxable_income_total);
         document.getElementById('box3DeemedReturn').textContent = this.formatCurrency(result.box3_deemed_return);

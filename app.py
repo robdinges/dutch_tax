@@ -22,6 +22,25 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'dutch-tax-calculator-secret'
 
 
+def compute_box1_bracket_breakdown(taxable_income: Decimal, brackets: list) -> list[dict]:
+    """Return per-bracket tax application details for Box1."""
+    breakdown = []
+    for bracket in sorted(brackets, key=lambda b: b.lower_bound):
+        taxable_in_bracket = bracket.taxable_amount(taxable_income)
+        if taxable_in_bracket <= 0:
+            continue
+        tax_in_bracket = taxable_in_bracket * bracket.rate
+        breakdown.append({
+            'description': bracket.description,
+            'lower_bound': float(bracket.lower_bound),
+            'upper_bound': float(bracket.upper_bound) if bracket.upper_bound is not None else None,
+            'rate': float(bracket.rate),
+            'taxable_amount': float(taxable_in_bracket),
+            'tax_amount': float(tax_in_bracket),
+        })
+    return breakdown
+
+
 def save_input_data_to_json(data: dict) -> str:
     """Persist submitted form data to a stable JSON file per household ID."""
     submissions_dir = Path(__file__).parent / "submissions"
@@ -180,15 +199,32 @@ def calculate_tax():
         
         # Calculate taxes
         box1_breakdown = {}
+        box1_brackets_applied_totals = {}
         total_box1 = Decimal('0')
         
         for person in household.members:
+            taxable_income = person.compute_taxable_income()
             box1_tax = person.compute_box1_tax(config.box1_brackets)
+            bracket_breakdown = compute_box1_bracket_breakdown(taxable_income, config.box1_brackets)
+
+            for row in bracket_breakdown:
+                key = row['description']
+                if key not in box1_brackets_applied_totals:
+                    box1_brackets_applied_totals[key] = {
+                        'description': row['description'],
+                        'rate': row['rate'],
+                        'taxable_amount': Decimal('0'),
+                        'tax_amount': Decimal('0'),
+                    }
+                box1_brackets_applied_totals[key]['taxable_amount'] += Decimal(str(row['taxable_amount']))
+                box1_brackets_applied_totals[key]['tax_amount'] += Decimal(str(row['tax_amount']))
+
             box1_breakdown[person.name] = {
                 'gross_income': float(person.total_gross_income()),
                 'deductions': float(person.total_deductions()),
-                'taxable_income': float(person.compute_taxable_income()),
+                'taxable_income': float(taxable_income),
                 'box1_tax': float(box1_tax),
+                'box1_brackets': bracket_breakdown,
                 'tax_credits': float(person.total_tax_credits()),
                 'withheld_tax': float(person.withheld_tax),
                 'dividend_tax_paid': float(person.dividend_tax_paid),
@@ -210,6 +246,15 @@ def calculate_tax():
             config.box3_savings_return_rate,
             config.box3_investment_return_rate,
         )
+
+        savings_assets = household.total_savings_assets()
+        investment_assets = household.total_investment_assets()
+        savings_deemed_return = savings_assets * config.box3_savings_return_rate
+        investment_deemed_return = investment_assets * config.box3_investment_return_rate
+        total_assets = household.total_asset_value()
+        corrected_assets = max(Decimal('0'), total_assets - tax_free_assets)
+        correction_factor = (corrected_assets / total_assets) if total_assets > 0 else Decimal('0')
+
         box3_corrected_deemed_return = household.compute_box3_corrected_deemed_return(
             config.box3_savings_return_rate,
             config.box3_investment_return_rate,
@@ -254,7 +299,18 @@ def calculate_tax():
             box3_tax_free_assets=tax_free_assets,
         )
         total_tax = sum(total_tax_per_member.values(), Decimal('0'))
-        total_assets = household.total_asset_value()
+        box1_brackets_applied = sorted(
+            [
+                {
+                    'description': row['description'],
+                    'rate': row['rate'],
+                    'taxable_amount': float(row['taxable_amount']),
+                    'tax_amount': float(row['tax_amount']),
+                }
+                for row in box1_brackets_applied_totals.values()
+            ],
+            key=lambda item: item['rate']
+        )
         total_income = household.total_gross_income()
         
         # Calculate effective tax rate
@@ -270,8 +326,16 @@ def calculate_tax():
             'box1_taxable_income_total': float(total_box1_taxable_income),
             'box3_tax': float(box3_tax),
             'box3_rate': float(config.box3_rate * 100),
+            'box1_brackets_applied': box1_brackets_applied,
             'box3_savings_return_rate': float(config.box3_savings_return_rate * 100),
             'box3_investment_return_rate': float(config.box3_investment_return_rate * 100),
+            'box3_savings_assets': float(savings_assets),
+            'box3_investment_assets': float(investment_assets),
+            'box3_savings_deemed_return': float(savings_deemed_return),
+            'box3_investment_deemed_return': float(investment_deemed_return),
+            'box3_correction_factor': float(correction_factor),
+            'box3_corrected_savings_deemed_return': float(savings_deemed_return * correction_factor),
+            'box3_corrected_investment_deemed_return': float(investment_deemed_return * correction_factor),
             'box3_deemed_return': float(box3_deemed_return),
             'box3_corrected_deemed_return': float(box3_corrected_deemed_return),
             'box3_tax_free_assets': float(tax_free_assets),
