@@ -22,6 +22,7 @@ tax_form.py              # Interactive command-line form
 form_demo.py             # Pre-populated form demonstrations
 examples.py              # Usage examples for all features
 CONFIGURATION_GUIDE.md   # How to maintain and update tax rates
+FUNCTIONEEL_EN_OBJECTMODEL_PYTHON_NL.md  # Functioneel ontwerp en objectmodel (Python)
 ```
 
 ## Quick Start

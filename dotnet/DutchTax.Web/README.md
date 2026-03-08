@@ -24,6 +24,7 @@ Let op: gebruik `./run-dotnet.sh` (met `./`).
 
 Uitgebreide NL handleiding:
 - `dotnet/LOCAL_RUN_NL.md`
+- `dotnet/FUNCTIONEEL_EN_OBJECTMODEL_NL.md`
 
 Open daarna:
 - `http://localhost:5000` of
