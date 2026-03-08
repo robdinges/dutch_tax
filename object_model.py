@@ -224,12 +224,15 @@ class Person:
     tax_credits: List[TaxCredit] = field(default_factory=list)
     own_home: Optional[OwnHome] = None
     withheld_tax: Decimal = Decimal(0)
+    dividend_tax_paid: Decimal = Decimal(0)
     
     def __post_init__(self):
         if not self.name or not self.bsn:
             raise ValueError("Name and BSN are required")
         if self.withheld_tax < 0:
             raise ValueError("Withheld tax cannot be negative")
+        if self.dividend_tax_paid < 0:
+            raise ValueError("Dividend tax paid cannot be negative")
     
     # ========================================================================
     # Income Calculations
@@ -315,6 +318,10 @@ class Person:
     def compute_withheld_tax(self) -> Decimal:
         """Return the amount of tax already withheld (e.g., employer withholding)."""
         return self.withheld_tax
+
+    def compute_prepaid_taxes(self) -> Decimal:
+        """Return total taxes already paid (wage withholding + dividend tax)."""
+        return self.withheld_tax + self.dividend_tax_paid
     
     def compute_net_tax_liability(self, brackets: List[TaxBracket]) -> Decimal:
         """
@@ -387,11 +394,40 @@ class Household:
         investment_return = self.total_investment_assets() * investment_return_rate
         return savings_return + investment_return
 
+    def compute_box3_corrected_deemed_return(
+        self,
+        savings_return_rate: Decimal,
+        investment_return_rate: Decimal,
+        tax_free_assets: Decimal,
+    ) -> Decimal:
+        """
+        Compute Box3 deemed return corrected for tax-free assets.
+
+        Formula:
+        corrected_deemed_return = (corrected_assets / total_assets) * deemed_return
+        where corrected_assets = max(total_assets - tax_free_assets, 0)
+        """
+        total_assets = self.total_asset_value()
+        if total_assets <= 0:
+            return Decimal(0)
+
+        deemed_return = self.compute_box3_deemed_return(
+            savings_return_rate,
+            investment_return_rate,
+        )
+
+        corrected_assets = max(Decimal(0), total_assets - tax_free_assets)
+        if corrected_assets == 0:
+            return Decimal(0)
+
+        return (corrected_assets / total_assets) * deemed_return
+
     def compute_box3_tax(
         self,
         tax_rate: Decimal,
         savings_return_rate: Decimal = Decimal("0.01"),
         investment_return_rate: Decimal = Decimal("0.06"),
+        tax_free_assets: Decimal = Decimal("0"),
     ) -> Decimal:
         """
         Compute total Box3 tax for the household.
@@ -405,15 +441,32 @@ class Household:
             tax_rate: Tax rate on deemed return as decimal (e.g., 0.35 for 35%)
             savings_return_rate: Deemed return rate for savings assets.
             investment_return_rate: Deemed return rate for investment assets.
+            tax_free_assets: Tax-free Box3 assets allowance for the household.
             
         Returns:
             Total Box3 tax liability
         """
-        deemed_return = self.compute_box3_deemed_return(
+        deemed_return = self.compute_box3_corrected_deemed_return(
             savings_return_rate,
             investment_return_rate,
+            tax_free_assets,
         )
         return deemed_return * tax_rate
+
+    def compute_verzamelinkomen(
+        self,
+        savings_return_rate: Decimal,
+        investment_return_rate: Decimal,
+        tax_free_assets: Decimal,
+    ) -> Decimal:
+        """Compute total taxable income including corrected Box3 deemed return."""
+        box1_total = sum((member.compute_taxable_income() for member in self.members), Decimal(0))
+        box3_income = self.compute_box3_corrected_deemed_return(
+            savings_return_rate,
+            investment_return_rate,
+            tax_free_assets,
+        )
+        return box1_total + box3_income
     
     def allocate_box3_between_partners(
         self,
@@ -422,6 +475,7 @@ class Household:
         custom_allocation: Optional[Dict[str, Decimal]] = None,
         savings_return_rate: Decimal = Decimal("0.01"),
         investment_return_rate: Decimal = Decimal("0.06"),
+        tax_free_assets: Decimal = Decimal("0"),
     ) -> Dict[str, Decimal]:
         """
         Allocate Box3 tax burden between household members.
@@ -432,6 +486,7 @@ class Household:
             custom_allocation: Optional custom allocation per BSN
             savings_return_rate: Deemed return rate for savings assets.
             investment_return_rate: Deemed return rate for investment assets.
+            tax_free_assets: Tax-free Box3 assets allowance for the household.
             
         Returns:
             Dictionary mapping BSN to allocated tax amount
@@ -440,6 +495,7 @@ class Household:
             tax_rate,
             savings_return_rate,
             investment_return_rate,
+            tax_free_assets,
         )
         allocation = {}
         
@@ -457,8 +513,13 @@ class Household:
                 for member in self.members
             }
             total_deemed_return = sum(per_member_deemed_return.values(), Decimal(0))
+            corrected_total_deemed_return = self.compute_box3_corrected_deemed_return(
+                savings_return_rate,
+                investment_return_rate,
+                tax_free_assets,
+            )
 
-            if total_deemed_return == 0:
+            if corrected_total_deemed_return == 0 or total_deemed_return == 0:
                 per_person = total_tax / len(self.members) if self.members else Decimal(0)
                 for member in self.members:
                     allocation[member.bsn] = per_person
@@ -488,6 +549,7 @@ class Household:
         box3_strategy: AllocationStrategy = AllocationStrategy.EQUAL,
         box3_savings_return_rate: Decimal = Decimal("0.01"),
         box3_investment_return_rate: Decimal = Decimal("0.06"),
+        box3_tax_free_assets: Decimal = Decimal("0"),
     ) -> Dict[str, Decimal]:
         """
         Compute total tax liability for all household members.
@@ -501,6 +563,7 @@ class Household:
             box3_strategy,
             savings_return_rate=box3_savings_return_rate,
             investment_return_rate=box3_investment_return_rate,
+            tax_free_assets=box3_tax_free_assets,
         )
         
         result = {}
@@ -526,6 +589,8 @@ class TaxYearConfig:
     general_tax_credit: Decimal  # Standard tax credit for residents
     box3_savings_return_rate: Decimal = Decimal("0.01")
     box3_investment_return_rate: Decimal = Decimal("0.06")
+    box3_tax_free_assets_single: Decimal = Decimal("57000")
+    box3_tax_free_assets_partner: Decimal = Decimal("114000")
     description: str = ""
 
 

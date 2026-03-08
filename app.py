@@ -51,12 +51,12 @@ def get_income_types():
     """Get available income source types."""
     return jsonify({
         'types': [
-            {'id': 'EMPLOYMENT', 'label': 'Employment (W-2/salary)'},
-            {'id': 'SELF_EMPLOYMENT', 'label': 'Self-Employment (business)'},
-            {'id': 'RENTAL', 'label': 'Rental (property income)'},
-            {'id': 'PENSION', 'label': 'Pension (retirement)'},
-            {'id': 'INVESTMENT', 'label': 'Investment (dividends, interest)'},
-            {'id': 'OTHER', 'label': 'Other'},
+            {'id': 'EMPLOYMENT', 'label': 'Loon uit dienstverband'},
+            {'id': 'SELF_EMPLOYMENT', 'label': 'Winst uit onderneming'},
+            {'id': 'RENTAL', 'label': 'Huurinkomsten'},
+            {'id': 'PENSION', 'label': 'Pensioenuitkering'},
+            {'id': 'INVESTMENT', 'label': 'Beleggingsinkomsten (dividend/rente)'},
+            {'id': 'OTHER', 'label': 'Overig'},
         ]
     })
 
@@ -66,11 +66,11 @@ def get_asset_types():
     """Get available asset types."""
     return jsonify({
         'types': [
-            {'id': 'SAVINGS', 'label': 'Savings Account'},
-            {'id': 'INVESTMENT', 'label': 'Investment Portfolio'},
-            {'id': 'REAL_ESTATE', 'label': 'Real Estate (primary residence excluded)'},
-            {'id': 'BUSINESS', 'label': 'Business Assets'},
-            {'id': 'OTHER', 'label': 'Other Assets'},
+            {'id': 'SAVINGS', 'label': 'Spaarrekening'},
+            {'id': 'INVESTMENT', 'label': 'Beleggingsportefeuille'},
+            {'id': 'REAL_ESTATE', 'label': 'Onroerend goed (excl. eigen woning)'},
+            {'id': 'BUSINESS', 'label': 'Ondernemingsvermogen'},
+            {'id': 'OTHER', 'label': 'Overig vermogen'},
         ]
     })
 
@@ -80,9 +80,9 @@ def get_allocation_strategies():
     """Get available Box3 allocation strategies."""
     return jsonify({
         'strategies': [
-            {'id': 'EQUAL', 'label': 'Equal (50-50 split)'},
-            {'id': 'PROPORTIONAL', 'label': 'Proportional (by income)'},
-            {'id': 'CUSTOM', 'label': 'Custom percentages'},
+            {'id': 'EQUAL', 'label': 'Gelijk (50-50)'},
+            {'id': 'PROPORTIONAL', 'label': 'Proportioneel (op fictief rendement)'},
+            {'id': 'CUSTOM', 'label': 'Aangepaste percentages'},
         ]
     })
 
@@ -145,6 +145,20 @@ def calculate_tax():
                 # Add withheld tax
                 if member_data.get('withheld_tax'):
                     person.withheld_tax = Decimal(str(member_data.get('withheld_tax')))
+
+                # Add paid dividend tax (optional)
+                if member_data.get('dividend_tax_paid'):
+                    person.dividend_tax_paid = Decimal(str(member_data.get('dividend_tax_paid')))
+
+                # Add explicit tax credits/heffingskortingen (optional)
+                for credit in member_data.get('tax_credits', []):
+                    person.tax_credits.append(
+                        TaxCredit(
+                            name=credit.get('name', 'Tax Credit'),
+                            amount=Decimal(str(credit.get('amount', 0))),
+                            description=credit.get('description', ''),
+                        )
+                    )
                 
                 # Add assets
                 for asset in member_data.get('assets', []):
@@ -177,6 +191,8 @@ def calculate_tax():
                 'box1_tax': float(box1_tax),
                 'tax_credits': float(person.total_tax_credits()),
                 'withheld_tax': float(person.withheld_tax),
+                'dividend_tax_paid': float(person.dividend_tax_paid),
+                'prepaid_taxes': float(person.compute_prepaid_taxes()),
                 'net_liability': float(person.compute_net_tax_liability(config.box1_brackets)),
                 'assets': float(person.total_asset_value()),
             }
@@ -184,17 +200,49 @@ def calculate_tax():
         
         # Calculate Box3
         strategy = AllocationStrategy[data.get('allocation_strategy', 'EQUAL')]
+        tax_free_assets = (
+            config.box3_tax_free_assets_partner
+            if len(household.members) > 1
+            else config.box3_tax_free_assets_single
+        )
+
+        box3_deemed_return = household.compute_box3_deemed_return(
+            config.box3_savings_return_rate,
+            config.box3_investment_return_rate,
+        )
+        box3_corrected_deemed_return = household.compute_box3_corrected_deemed_return(
+            config.box3_savings_return_rate,
+            config.box3_investment_return_rate,
+            tax_free_assets,
+        )
         box3_tax = household.compute_box3_tax(
             config.box3_rate,
             config.box3_savings_return_rate,
             config.box3_investment_return_rate,
+            tax_free_assets,
         )
         allocation = household.allocate_box3_between_partners(
             config.box3_rate,
             strategy,
             savings_return_rate=config.box3_savings_return_rate,
             investment_return_rate=config.box3_investment_return_rate,
+            tax_free_assets=tax_free_assets,
         )
+
+        # Box1, verzamelinkomen, and settlement
+        total_box1_taxable_income = sum(
+            (member.compute_taxable_income() for member in household.members),
+            Decimal('0')
+        )
+        verzamelinkomen = household.compute_verzamelinkomen(
+            config.box3_savings_return_rate,
+            config.box3_investment_return_rate,
+            tax_free_assets,
+        )
+        total_tax_credits = sum((member.total_tax_credits() for member in household.members), Decimal('0'))
+        total_prepaid_taxes = sum((member.compute_prepaid_taxes() for member in household.members), Decimal('0'))
+        gross_income_tax = total_box1 + box3_tax
+        net_settlement = gross_income_tax - total_tax_credits - total_prepaid_taxes
         
         # Total calculation
         total_tax_per_member = household.compute_total_tax(
@@ -203,6 +251,7 @@ def calculate_tax():
             strategy,
             box3_savings_return_rate=config.box3_savings_return_rate,
             box3_investment_return_rate=config.box3_investment_return_rate,
+            box3_tax_free_assets=tax_free_assets,
         )
         total_tax = sum(total_tax_per_member.values(), Decimal('0'))
         total_assets = household.total_asset_value()
@@ -218,15 +267,24 @@ def calculate_tax():
             'success': True,
             'box1_breakdown': box1_breakdown,
             'box1_total': float(total_box1),
+            'box1_taxable_income_total': float(total_box1_taxable_income),
             'box3_tax': float(box3_tax),
             'box3_rate': float(config.box3_rate * 100),
             'box3_savings_return_rate': float(config.box3_savings_return_rate * 100),
             'box3_investment_return_rate': float(config.box3_investment_return_rate * 100),
+            'box3_deemed_return': float(box3_deemed_return),
+            'box3_corrected_deemed_return': float(box3_corrected_deemed_return),
+            'box3_tax_free_assets': float(tax_free_assets),
             'box3_allocation': {
                 name: float(amount) 
                 for name, amount in allocation.items()
             },
             'total_tax': float(total_tax),
+            'gross_income_tax': float(gross_income_tax),
+            'verzamelinkomen': float(verzamelinkomen),
+            'total_prepaid_taxes': float(total_prepaid_taxes),
+            'total_tax_credits': float(total_tax_credits),
+            'net_settlement': float(net_settlement),
             'total_assets': float(total_assets),
             'total_income': float(total_income),
             'effective_tax_rate': round(effective_rate, 2),

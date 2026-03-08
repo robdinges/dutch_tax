@@ -55,7 +55,7 @@ const app = {
             console.log('✓ Types loaded:', this.incomeTypes.length, 'income types,', this.assetTypes.length, 'asset types');
         } catch (error) {
             console.error('✗ Error loading types:', error);
-            alert('Warning: Could not load form options. Some features may not work.');
+            alert('Waarschuwing: formulieropties konden niet worden geladen. Sommige functies werken mogelijk niet.');
         }
     },
 
@@ -126,11 +126,21 @@ const app = {
             const bsnEl = document.getElementById(`bsn-${i}`);
             const residencyEl = document.getElementById(`residency-${i}`);
             const withheldEl = document.getElementById(`withheld-${i}`);
+            const dividendTaxEl = document.getElementById(`dividend-tax-${i}`);
+            const ownHomeEnabledEl = document.getElementById(`own-home-enabled-${i}`);
+            const ownHomeWozEl = document.getElementById(`own-home-woz-${i}`);
+            const ownHomePeriodEl = document.getElementById(`own-home-period-${i}`);
 
             if (fullNameEl) fullNameEl.value = member.full_name || '';
             if (bsnEl) bsnEl.value = member.bsn || '';
             if (residencyEl) residencyEl.value = member.residency_status || 'RESIDENT';
             if (withheldEl) withheldEl.value = member.withheld_tax || 0;
+            if (dividendTaxEl) dividendTaxEl.value = member.dividend_tax_paid || 0;
+
+            const hasOwnHome = !!member.own_home;
+            if (ownHomeEnabledEl) ownHomeEnabledEl.checked = hasOwnHome;
+            if (ownHomeWozEl) ownHomeWozEl.value = hasOwnHome ? (member.own_home.woz_value || '') : '';
+            if (ownHomePeriodEl) ownHomePeriodEl.value = hasOwnHome ? (member.own_home.period_fraction || 1) : 1;
 
             if (Array.isArray(member.incomes)) {
                 member.incomes.forEach((income) => {
@@ -161,6 +171,16 @@ const app = {
                     row.querySelector('[data-type="asset-value"]').value = asset.value || '';
                 });
             }
+
+            if (Array.isArray(member.tax_credits)) {
+                member.tax_credits.forEach((credit) => {
+                    this.addTaxCredit(i);
+                    const creditRows = document.querySelectorAll(`#tax-credits-${i} .item-row`);
+                    const row = creditRows[creditRows.length - 1];
+                    row.querySelector('[data-type="credit-name"]').value = credit.name || '';
+                    row.querySelector('[data-type="credit-amount"]').value = credit.amount || '';
+                });
+            }
         });
     },
 
@@ -182,62 +202,93 @@ const app = {
 
         card.innerHTML = `
             <div class="member-card-header">
-                <span class="member-card-title">👤 Member ${memberNumber}</span>
-                ${this.currentMemberCount > 1 ? `<button type="button" class="remove-member-btn" onclick="app.removeMember(${memberNumber})">Remove</button>` : ''}
+                <span class="member-card-title">👤 Persoon ${memberNumber}</span>
+                ${this.currentMemberCount > 1 ? `<button type="button" class="remove-member-btn" onclick="app.removeMember(${memberNumber})">Verwijderen</button>` : ''}
             </div>
 
             <!-- Basic Info -->
             <div class="mb-3">
-                <label for="fullName-${memberNumber}" class="form-label">Full Name *</label>
+                  <label for="fullName-${memberNumber}" class="form-label">Volledige naam *</label>
                 <input type="text" class="form-control" id="fullName-${memberNumber}" 
-                       placeholder="e.g., John Smith" required>
+                      placeholder="bijv. Jan Jansen" required>
             </div>
 
             <div class="mb-3">
-                <label for="bsn-${memberNumber}" class="form-label">BSN (Tax ID)</label>
+                <label for="bsn-${memberNumber}" class="form-label">BSN</label>
                 <input type="text" class="form-control" id="bsn-${memberNumber}" 
                        placeholder="9 digits" maxlength="9">
             </div>
 
             <div class="mb-3">
-                <label for="residency-${memberNumber}" class="form-label">Residency Status</label>
+                <label for="residency-${memberNumber}" class="form-label">Fiscale woonstatus</label>
                 <select class="form-select" id="residency-${memberNumber}">
-                    <option value="RESIDENT" selected>Resident (tax credit applies)</option>
-                    <option value="NON_RESIDENT">Non-resident</option>
+                    <option value="RESIDENT" selected>Ingezetene (heffingskortingen van toepassing)</option>
+                    <option value="NON_RESIDENT">Niet-ingezetene</option>
                 </select>
             </div>
 
             <!-- Income Sources -->
             <div class="subsection">
-                <label class="subsection-label">💰 Income Sources</label>
+                <label class="subsection-label">💰 Inkomstenbronnen</label>
                 <div id="incomes-${memberNumber}" class="income-list"></div>
                 <button type="button" class="add-item-btn" onclick="app.addIncome(${memberNumber})">
-                    + Add Income Source
+                    + Inkomstenbron toevoegen
                 </button>
             </div>
 
             <!-- Deductions -->
             <div class="subsection">
-                <label class="subsection-label">📝 Deductions</label>
+                <label class="subsection-label">📝 Aftrekposten</label>
                 <div id="deductions-${memberNumber}" class="deduction-list"></div>
                 <button type="button" class="add-item-btn" onclick="app.addDeduction(${memberNumber})">
-                    + Add Deduction
+                    + Aftrekpost toevoegen
                 </button>
             </div>
 
-            <!-- Withheld Tax -->
+            <!-- Tax Credits -->
             <div class="subsection">
-                <label for="withheld-${memberNumber}" class="form-label">Withheld Tax (€)</label>
-                <input type="number" class="form-control" id="withheld-${memberNumber}" 
-                       placeholder="0.00" min="0" step="0.01" value="0">
+                <label class="subsection-label">🎯 Heffingskortingen</label>
+                <div id="tax-credits-${memberNumber}" class="tax-credit-list"></div>
+                <button type="button" class="add-item-btn" onclick="app.addTaxCredit(${memberNumber})">
+                    + Add Heffingskorting
+                </button>
+            </div>
+
+            <!-- Own Home -->
+            <div class="subsection">
+                <label class="subsection-label">🏠 Eigen Woning (Eigenwoningforfait)</label>
+                <div class="row g-2">
+                    <div class="col-12">
+                        <div class="form-check mt-1">
+                            <input class="form-check-input" type="checkbox" id="own-home-enabled-${memberNumber}">
+                            <label class="form-check-label" for="own-home-enabled-${memberNumber}">
+                                Deze persoon heeft een eigen woning
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col-md-7">
+                        <input type="number" class="form-control" id="own-home-woz-${memberNumber}" placeholder="WOZ-waarde (€)" min="0" step="0.01">
+                    </div>
+                    <div class="col-md-5">
+                        <input type="number" class="form-control" id="own-home-period-${memberNumber}" placeholder="Periode (0-1)" min="0" max="1" step="0.01" value="1">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Prepaid Taxes -->
+            <div class="subsection">
+                <label for="withheld-${memberNumber}" class="form-label">Ingehouden Loonheffing (€)</label>
+                <input type="number" class="form-control" id="withheld-${memberNumber}" placeholder="0.00" min="0" step="0.01" value="0">
+                <label for="dividend-tax-${memberNumber}" class="form-label mt-2">Betaalde Dividendbelasting (€)</label>
+                <input type="number" class="form-control" id="dividend-tax-${memberNumber}" placeholder="0.00" min="0" step="0.01" value="0">
             </div>
 
             <!-- Assets -->
             <div class="subsection">
-                <label class="subsection-label">🏦 Assets (Box3)</label>
+                <label class="subsection-label">🏦 Vermogen (Box3)</label>
                 <div id="assets-${memberNumber}" class="asset-list"></div>
                 <button type="button" class="add-item-btn" onclick="app.addAsset(${memberNumber})">
-                    + Add Asset
+                    + Vermogen toevoegen
                 </button>
             </div>
         `;
@@ -262,8 +313,8 @@ const app = {
             <select class="form-select" data-type="income-type">
                 ${optionsHtml}
             </select>
-            <input type="number" class="form-control" placeholder="Amount (€)" min="0" step="0.01" data-type="income-amount" required>
-            <button type="button" class="remove-item-btn" onclick="app.removeItem('${id}')">Remove</button>
+            <input type="number" class="form-control" placeholder="Bedrag (€)" min="0" step="0.01" data-type="income-amount" required>
+            <button type="button" class="remove-item-btn" onclick="app.removeItem('${id}')">Verwijderen</button>
         `;
 
         incomeList.appendChild(row);
@@ -279,12 +330,30 @@ const app = {
         row.id = id;
 
         row.innerHTML = `
-            <input type="text" class="form-control" placeholder="Description" data-type="deduction-desc" required>
-            <input type="number" class="form-control" placeholder="Amount (€)" min="0" step="0.01" data-type="deduction-amount" required>
-            <button type="button" class="remove-item-btn" onclick="app.removeItem('${id}')">Remove</button>
+            <input type="text" class="form-control" placeholder="Omschrijving" data-type="deduction-desc" required>
+            <input type="number" class="form-control" placeholder="Bedrag (€)" min="0" step="0.01" data-type="deduction-amount" required>
+            <button type="button" class="remove-item-btn" onclick="app.removeItem('${id}')">Verwijderen</button>
         `;
 
         deductionList.appendChild(row);
+    },
+
+    // Add tax credit input
+    addTaxCredit(memberNumber) {
+        const creditList = document.getElementById(`tax-credits-${memberNumber}`);
+        const id = `tax-credit-${memberNumber}-${Date.now()}`;
+
+        const row = document.createElement('div');
+        row.className = 'item-row two-col';
+        row.id = id;
+
+        row.innerHTML = `
+            <input type="text" class="form-control" placeholder="Naam (bijv. Arbeidskorting)" data-type="credit-name" required>
+            <input type="number" class="form-control" placeholder="Bedrag (€)" min="0" step="0.01" data-type="credit-amount" required>
+            <button type="button" class="remove-item-btn" onclick="app.removeItem('${id}')">Verwijderen</button>
+        `;
+
+        creditList.appendChild(row);
     },
 
     // Add asset input
@@ -304,8 +373,8 @@ const app = {
             <select class="form-select" data-type="asset-type">
                 ${optionsHtml}
             </select>
-            <input type="number" class="form-control" placeholder="Value (€)" min="0" step="0.01" data-type="asset-value" required>
-            <button type="button" class="remove-item-btn" onclick="app.removeItem('${id}')">Remove</button>
+            <input type="number" class="form-control" placeholder="Waarde (€)" min="0" step="0.01" data-type="asset-value" required>
+            <button type="button" class="remove-item-btn" onclick="app.removeItem('${id}')">Verwijderen</button>
         `;
 
         assetList.appendChild(row);
@@ -340,8 +409,20 @@ const app = {
                 incomes: [],
                 deductions: [],
                 withheld_tax: parseFloat(document.getElementById(`withheld-${i}`).value) || 0,
+                dividend_tax_paid: parseFloat(document.getElementById(`dividend-tax-${i}`).value) || 0,
+                tax_credits: [],
                 assets: []
             };
+
+            const ownHomeEnabled = document.getElementById(`own-home-enabled-${i}`).checked;
+            const ownHomeWoz = parseFloat(document.getElementById(`own-home-woz-${i}`).value);
+            const ownHomePeriod = parseFloat(document.getElementById(`own-home-period-${i}`).value);
+            if (ownHomeEnabled && !Number.isNaN(ownHomeWoz) && ownHomeWoz > 0) {
+                member.own_home = {
+                    woz_value: ownHomeWoz,
+                    period_fraction: Number.isNaN(ownHomePeriod) ? 1 : ownHomePeriod
+                };
+            }
 
             // Collect incomes
             const incomeRows = memberCard.querySelectorAll('#incomes-' + i + ' .item-row');
@@ -384,6 +465,19 @@ const app = {
                 }
             });
 
+            // Collect tax credits/heffingskortingen
+            const creditRows = memberCard.querySelectorAll('#tax-credits-' + i + ' .item-row');
+            creditRows.forEach(row => {
+                const name = row.querySelector('[data-type="credit-name"]').value;
+                const amount = row.querySelector('[data-type="credit-amount"]').value;
+                if (name && amount) {
+                    member.tax_credits.push({
+                        name: name,
+                        amount: parseFloat(amount)
+                    });
+                }
+            });
+
             members.push(member);
         }
 
@@ -402,7 +496,7 @@ const app = {
             const data = this.collectFormData();
 
             if (data.members.length === 0) {
-                alert('Please add at least one member with income data');
+                alert('Voeg minimaal een persoon met inkomsten toe.');
                 this.loadingSpinner.classList.add('d-none');
                 return;
             }
@@ -425,17 +519,17 @@ const app = {
 
             if (result.error) {
                 console.error('API Error:', result.error);
-                alert('Error: ' + result.error);
+                alert('Fout: ' + result.error);
             } else if (result.success) {
                 console.log('✓ Calculation successful');
                 this.displayResults(result);
             } else {
                 console.error('Unexpected response:', result);
-                alert('Calculation did not return expected format');
+                alert('De berekening gaf geen verwacht antwoordformaat terug.');
             }
         } catch (error) {
             console.error('✗ Error calculating taxes:', error);
-            alert('Error calculating taxes: ' + error.message);
+            alert('Fout bij belastingberekening: ' + error.message);
         } finally {
             this.loadingSpinner.classList.add('d-none');
         }
@@ -450,7 +544,7 @@ const app = {
         this.emptyState.style.display = 'none';
 
         // Update summary cards
-        document.getElementById('totalTaxAmount').textContent = this.formatCurrency(result.total_tax);
+        document.getElementById('totalTaxAmount').textContent = this.formatCurrency(result.net_settlement);
         document.getElementById('effectiveRateAmount').textContent = result.effective_tax_rate.toFixed(2) + '%';
 
         // Update Box1
@@ -460,27 +554,39 @@ const app = {
                 <div class="member-detail">
                     <div class="member-detail-name">${name}</div>
                     <div class="member-detail-row">
-                        <span class="member-detail-label">Gross Income:</span>
+                        <span class="member-detail-label">Bruto inkomen:</span>
                         <span class="member-detail-value">${this.formatCurrency(details.gross_income)}</span>
                     </div>
                     <div class="member-detail-row">
-                        <span class="member-detail-label">Deductions:</span>
+                        <span class="member-detail-label">Aftrekposten:</span>
                         <span class="member-detail-value">${this.formatCurrency(details.deductions)}</span>
                     </div>
                     <div class="member-detail-row">
-                        <span class="member-detail-label">Taxable Income:</span>
+                        <span class="member-detail-label">Belastbaar inkomen:</span>
                         <span class="member-detail-value">${this.formatCurrency(details.taxable_income)}</span>
                     </div>
                     <div class="member-detail-row">
-                        <span class="member-detail-label">Box1 Tax:</span>
+                        <span class="member-detail-label">Box1 belasting:</span>
                         <span class="member-detail-value">${this.formatCurrency(details.box1_tax)}</span>
                     </div>
                     <div class="member-detail-row">
-                        <span class="member-detail-label">Withheld Tax:</span>
+                        <span class="member-detail-label">Ingehouden loonheffing:</span>
                         <span class="member-detail-value">${this.formatCurrency(details.withheld_tax)}</span>
                     </div>
                     <div class="member-detail-row">
-                        <span class="member-detail-label"><strong>Net Liability:</strong></span>
+                        <span class="member-detail-label">Betaalde dividendbelasting:</span>
+                        <span class="member-detail-value">${this.formatCurrency(details.dividend_tax_paid || 0)}</span>
+                    </div>
+                    <div class="member-detail-row">
+                        <span class="member-detail-label">Voorheffingen totaal:</span>
+                        <span class="member-detail-value">${this.formatCurrency(details.prepaid_taxes || 0)}</span>
+                    </div>
+                    <div class="member-detail-row">
+                        <span class="member-detail-label">Heffingskortingen:</span>
+                        <span class="member-detail-value">${this.formatCurrency(details.tax_credits)}</span>
+                    </div>
+                    <div class="member-detail-row">
+                        <span class="member-detail-label"><strong>Netto last:</strong></span>
                         <span class="member-detail-value"><strong>${this.formatCurrency(details.net_liability)}</strong></span>
                     </div>
                 </div>
@@ -505,8 +611,19 @@ const app = {
         document.getElementById('box3Allocation').innerHTML = allocationHtml;
         document.getElementById('box3Total').textContent = this.formatCurrency(result.box3_tax);
 
+        // Update process flow details
+        document.getElementById('box1TaxableIncomeTotal').textContent = this.formatCurrency(result.box1_taxable_income_total);
+        document.getElementById('box3DeemedReturn').textContent = this.formatCurrency(result.box3_deemed_return);
+        document.getElementById('box3TaxFreeAssets').textContent = this.formatCurrency(result.box3_tax_free_assets);
+        document.getElementById('box3CorrectedDeemedReturn').textContent = this.formatCurrency(result.box3_corrected_deemed_return);
+        document.getElementById('verzamelinkomen').textContent = this.formatCurrency(result.verzamelinkomen);
+        document.getElementById('grossIncomeTax').textContent = this.formatCurrency(result.gross_income_tax);
+        document.getElementById('totalPrepaidTaxes').textContent = this.formatCurrency(result.total_prepaid_taxes);
+        document.getElementById('totalTaxCredits').textContent = this.formatCurrency(result.total_tax_credits);
+        document.getElementById('netSettlement').textContent = this.formatCurrency(result.net_settlement);
+
         // Update final total
-        document.getElementById('finalTotalTax').textContent = this.formatCurrency(result.total_tax);
+        document.getElementById('finalTotalTax').textContent = this.formatCurrency(result.net_settlement);
     },
 
     // Format currency

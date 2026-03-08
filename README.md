@@ -10,7 +10,8 @@ A production-ready Python domain model and interactive form for the Dutch tax sy
 ✅ **Multiple Income Sources** - Support for employment, self-employment, rental, pension, etc.  
 ✅ **Eigenwoningforfait 2025** - Automatic Box1 addition for owner-occupied homes (WOZ-based)  
 ✅ **JSON Input Logging** - Web API stores one JSON file per `household_id` in `submissions/`  
-✅ **Box3 Wealth Tax** - Flexible allocation strategies (equal, proportional, custom)  
+✅ **Box3 Deemed Return Model** - Savings/investments split with tax-free-assets correction  
+✅ **End Settlement** - Offsets tax with withheld wage tax, dividend tax, and heffingskortingen  
 ✅ **Comprehensive Examples** - Demos for different scenarios  
 ✅ **Easy to Extend** - Add new tax years with minimal code  
 ✅ **No Dependencies** - Pure Python, standard library only  
@@ -24,6 +25,8 @@ tax_form.py              # Interactive command-line form
 form_demo.py             # Pre-populated form demonstrations
 examples.py              # Usage examples for all features
 test_eigenwoningforfait.py  # Unit and integration tests for eigenwoningforfait
+test_box3_deemed_return.py  # Box3 savings/investments deemed return tests
+test_income_tax_approach.py # Combined Box1/Box3 and settlement flow tests
 CONFIGURATION_GUIDE.md   # How to maintain and update tax rates
 FUNCTIONEEL_EN_OBJECTMODEL_PYTHON_NL.md  # Functioneel ontwerp en objectmodel (Python)
 ```
@@ -39,6 +42,18 @@ python3 tax_form.py
 Voor de webinterface (`python3 app.py`) kun je ook eerder opgeslagen invoer opnieuw laden:
 1. Kies een JSON-bestand uit `submissions/` bij **Load Saved Input (JSON)**.
 2. Klik op **Load JSON Into Form** om het formulier automatisch te vullen.
+
+De web-GUI volgt nu de procesflow in 3 tabs:
+1. `Huishouden`
+2. `Personen`
+3. `Importeren & Berekenen`
+
+En toont in de resultaten expliciet:
+- Box1 belastbaar inkomen
+- Box3 fictief rendement en correctie met heffingsvrij vermogen
+- verzamelinkomen
+- voorheffingen en heffingskortingen
+- eindafrekening (te betalen/te ontvangen)
 
 This launches an interactive form that guides you through:
 - Creating household members
@@ -133,7 +148,7 @@ household.add_member(person2)
 total_tax = household.compute_total_tax(
     config.box1_brackets,
     config.box3_rate,
-    AllocationStrategy.PROPORTIONAL  # Based on wealth ratio
+    AllocationStrategy.PROPORTIONAL  # Based on deemed return ratio
 )
 ```
 
@@ -231,18 +246,30 @@ Taxable Income = Gross Income + Eigenwoningforfait - Deductions
 
 ```
 Deemed Return = (Savings × savings fictive return) + (Investments × investment fictive return)
-Box3 Tax = Deemed Return × Tax Rate
+Corrected Deemed Return = ((Total Assets - Tax-Free Assets) / Total Assets) × Deemed Return
+Box3 Tax = Corrected Deemed Return × Tax Rate
 ```
 
 For 2025 in this project:
-- Box3 tax rate: `35%`
+- Box3 tax rate: `36%`
 - Savings fictive return rate: `1.44%`
 - Investment fictive return rate: `5.88%`
+- Tax-free assets (single): `€57,000`
+- Tax-free assets (fiscal partners): `€114,000`
 
 Allocation strategies:
 - **EQUAL**: Each person pays equal share
 - **PROPORTIONAL**: Based on individual deemed return ratio
 - **CUSTOM**: Manual allocation per person
+
+### Verzamelinkomen And Final Settlement
+
+```text
+Verzamelinkomen = Box1 Taxable Income (Work & Home) + Corrected Box3 Deemed Return
+Gross Income Tax = Box1 Tax + Box3 Tax
+Net Settlement = Gross Income Tax - Heffingskortingen - Prepaid Taxes
+Prepaid Taxes = Withheld Wage Tax + Paid Dividend Tax
+```
 
 ## Adding a New Tax Year
 
@@ -271,6 +298,10 @@ TAX_CONFIG_2026 = TaxYearConfig(
     year=2026,
     box1_brackets=create_2026_brackets(),
     box3_rate=Decimal("0.3600"),
+    box3_savings_return_rate=Decimal("0.0140"),
+    box3_investment_return_rate=Decimal("0.0580"),
+    box3_tax_free_assets_single=Decimal("58000"),
+    box3_tax_free_assets_partner=Decimal("116000"),
     general_tax_credit=Decimal(3_000),  # Updated
     description="Dutch tax year 2026"
 )

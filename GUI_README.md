@@ -1,211 +1,117 @@
-# Dutch Tax Calculator - Web GUI
+# Nederlandse Belastingcalculator - Web GUI
 
-A modern, user-friendly web-based interface for calculating Dutch income (Box1) and wealth (Box3) taxes for 2025.
+Webinterface voor berekening van inkomstenbelasting op basis van Box1 en Box3 (belastingjaar 2025).
 
-## Features
+## Wat is nieuw in de GUI
 
-✨ **Modern Web Interface**
-- Beautiful, responsive design with Bootstrap 5
-- Works on desktop, tablet, and mobile devices
-- Real-time form validation
-- Intuitive user experience
+- Volledig Nederlandstalige schermteksten.
+- Invoer in 3 logische tabs:
+1. `Huishouden`
+2. `Personen`
+3. `Importeren & Berekenen`
+- Per persoon ondersteuning voor:
+- inkomstenbronnen
+- aftrekposten
+- heffingskortingen
+- eigen woning (WOZ + periode)
+- voorheffingen (loonheffing + dividendbelasting)
+- Box3-vermogen
+- Resultaten met procesflow:
+- Box1 belastbaar inkomen
+- Box3 fictief rendement
+- correctie heffingsvrij vermogen
+- verzamelinkomen
+- bruto inkomstenbelasting
+- voorheffingen + heffingskortingen
+- eindafrekening
 
-💰 **Tax Calculation**
-- Box1 (Income Tax) with progressive brackets
-- Box3 (Wealth Tax) calculation
-- Support for multiple household members
-- Multiple income sources per person
-- Deductions and tax credits
-- Asset tracking and allocation
-
-📊 **Results Display**
-- Detailed tax breakdown by member
-- Box1 and Box3 summary
-- Effective tax rate calculation
-- Color-coded financial summaries
-- Easy to understand presentation
-
-🎯 **Flexible Allocation**
-- Equal split (50-50)
-- Proportional allocation (by income)
-- Custom percentage allocation
-
-## Running the Application
-
-### Prerequisites
-
-- Python 3.9+
-- Flask
-- All project files (object_model.py, tax_brackets.py, etc.)
-
-### Installation
+## Starten
 
 ```bash
-# Install Flask (if not already installed)
-pip install flask
-
-# Navigate to the project directory
-cd "/path/to/Copilot_test TAX"
-
-# Run the Flask app
 python3 app.py
 ```
 
-### Access the Application
+Of expliciet met dezelfde interpreter als tests:
 
-Open your web browser and go to:
-```
-http://localhost:5000
-```
-
-The application will start on port 5000 by default.
-
-## How to Use
-
-### 1. Enter Household Information
-- Set a household ID (optional)
-- Select the number of household members
-- Fill in basic information for each member:
-  - Full name
-  - BSN (tax identification number)
-  - Residency status
-
-### 2. Add Income Sources
-For each household member:
-- Click "+ Add Income Source"
-- Select the type (Employment, Self-Employment, Rental, etc.)
-- Enter the annual amount in euros
-
-### 3. Add Deductions
-For each household member:
-- Click "+ Add Deduction"
-- Enter description (e.g., "Mortgage Interest")
-- Enter the deduction amount in euros
-
-### 4. Add Withheld Tax
-- Enter any taxes already withheld by employers or banks
-
-### 5. Add Assets (Box3)
-For each household member:
-- Click "+ Add Asset"
-- Select asset type (Savings, Investment, Real Estate, etc.)
-- Enter the asset value in euros
-
-### 6. Choose Box3 Allocation Strategy
-Select how household assets should be allocated:
-- **Equal**: 50-50 split between partners
-- **Proportional**: Split based on income ratios
-- **Custom**: Manual percentage entry
-
-### 7. Calculate Taxes
-- Click the "Calculate Taxes" button
-- View detailed results including:
-  - Individual member tax calculations
-  - Box1 (income tax) totals
-  - Box3 (wealth tax) calculations
-  - Total tax due
-  - Effective tax rate
-
-## Tax Year Information
-
-**Tax Year 2025:**
-- General Tax Credit: €2,917.00
-- Box3 Rate: 36%
-- Progressive tax brackets for Box1
-
-## Project Structure
-
-```
-Copilot_test TAX/
-├── app.py                 # Flask application with API routes
-├── object_model.py        # Core domain models
-├── tax_brackets.py        # Tax configurations for 2023-2025
-├── templates/
-│   └── index.html        # Main HTML template
-└── static/
-    ├── style.css         # Styling and layout
-    └── app.js            # Frontend JavaScript and interactivity
+```bash
+/usr/local/bin/python3.11 app.py
 ```
 
-## API Endpoints
+Open daarna:
 
-The application provides REST API endpoints for use by the frontend:
-
-- `GET /` - Main page
-- `GET /api/income-types` - Available income source types
-- `GET /api/asset-types` - Available asset types
-- `GET /api/allocation-strategies` - Box3 allocation strategies
-- `POST /api/calculate` - Calculate taxes (accepts JSON form data)
-
-## Technical Stack
-
-- **Backend**: Python 3 with Flask
-- **Frontend**: HTML5, CSS3, JavaScript
-- **Styling**: Bootstrap 5
-- **Domain Logic**: Custom Python classes (Person, Household, TaxBracket, etc.)
-- **Financial Calculations**: Python Decimal for precision
-
-## Calculation Details
-
-### Box1 (Income Tax)
-1. Calculate total gross income from all sources
-2. Subtract deductions
-3. Apply progressive tax brackets (4 tiers for 2025)
-4. Apply general tax credit (€2,917)
-5. Subtract any withheld taxes
-6. Show net tax liability (or refund if negative)
-
-### Box3 (Wealth Tax)
-1. Sum all household member assets
-2. Apply 36% tax rate
-3. Allocate between members based on selected strategy
-4. Display per-member allocation
-
-### Total Tax Due
-- Box1 tax + Box3 tax
-- Effective tax rate = (Total Tax / Total Income) × 100
-
-## Important Disclaimer
-
-⚠️ **For informational purposes only**
-
-This calculator is provided for educational and informational purposes. It does not constitute professional tax advice. 
-
-For official tax purposes and accurate calculations, always consult the Dutch Tax Authority (Belastingdienst) or a qualified tax professional.
-
-## Troubleshooting
-
-### Port Already in Use
-If port 5000 is already in use, modify the Flask app:
-```python
-if __name__ == '__main__':
-    app.run(debug=True, port=5001)  # Change to different port
+```text
+http://127.0.0.1:8000
 ```
 
-### Module Not Found
-Ensure all required Python files are in the same directory:
-- object_model.py
-- tax_brackets.py
-- app.py
+## Procesflow in de GUI
 
-### Styling Issues
-Clear your browser cache (Ctrl+Shift+Delete or Cmd+Shift+Delete) and reload the page.
+### 1. Huishouden
 
-## Future Enhancements
+- `Huishouden-ID`
+- `Aantal personen`
+- Box3-verdelingsmethode:
+- `Gelijk`
+- `Proportioneel (op fictief rendement)`
+- `Aangepaste percentages`
 
-Potential features for future versions:
-- Save calculations to file (PDF/Excel export)
-- Multi-language support (Dutch/English)
-- Tax history and comparison tools
-- Advanced household scenarios
-- Database storage of calculations
-- Mobile app versions
-- API-only deployment
+### 2. Personen
 
-## License & Attribution
+Per persoon:
 
-This calculator uses realistic Dutch tax brackets from the Belastingdienst (Dutch Tax Authority).
+- Basis:
+- naam, BSN, fiscale woonstatus
+- Inkomsten:
+- type + bedrag
+- Aftrekposten:
+- omschrijving + bedrag
+- Heffingskortingen:
+- naam + bedrag (bijv. arbeidskorting, ouderenkorting)
+- Eigen woning:
+- aan/uit
+- WOZ-waarde
+- periode (0-1)
+- Voorheffingen:
+- ingehouden loonheffing
+- betaalde dividendbelasting
+- Vermogen (Box3):
+- type + waarde
 
----
+### 3. Importeren & Berekenen
 
-**Built with ❤️ for Dutch tax calculations**
+- JSON-bestand kiezen en laden uit `submissions/`
+- Berekening starten
+
+## Resultatenpaneel
+
+Toont:
+
+- Box1 detail per persoon
+- Box3 detail en verdeling
+- Procesflow-overzicht:
+- Box1 belastbaar inkomen totaal
+- Box3 fictief rendement
+- toegepast heffingsvrij vermogen
+- Box3 gecorrigeerd fictief rendement
+- verzamelinkomen
+- bruto inkomstenbelasting (Box1 + Box3)
+- voorheffingen (loon + dividend)
+- heffingskortingen
+- eindafrekening
+
+## JSON-invoer opslaan/laden
+
+- Elke `POST /api/calculate` wordt opgeslagen in:
+- `submissions/<household_id>.json`
+- In de GUI kun je deze JSON opnieuw laden via tab `Importeren & Berekenen`.
+
+## API-endpoints
+
+- `GET /`
+- `GET /api/income-types`
+- `GET /api/asset-types`
+- `GET /api/allocation-strategies`
+- `POST /api/calculate`
+
+## Opmerking
+
+Deze tool is een rekenhulp. Voor officiële aangifte en definitieve bedragen: controleer altijd bij de Belastingdienst of een fiscalist.
