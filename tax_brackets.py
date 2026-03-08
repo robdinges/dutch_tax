@@ -65,7 +65,9 @@ def create_2025_brackets() -> list[TaxBracket]:
 TAX_CONFIG_2025 = TaxYearConfig(
     year=2025,
     box1_brackets=create_2025_brackets(),
-    box3_rate=Decimal("0.3600"),  # 36% wealth tax on assets
+    box3_rate=Decimal("0.3500"),  # 35% tax on deemed return
+    box3_savings_return_rate=Decimal("0.0144"),
+    box3_investment_return_rate=Decimal("0.0588"),
     general_tax_credit=Decimal(2_917),  # 2025 general tax credit
     description="Dutch tax year 2025 - Realistic rates"
 )
@@ -216,8 +218,9 @@ Box1 (Inkomstenbelasting - Income Tax):
   - Rates include national income tax + employee social contributions
   
 Box3 (Belasting op Vermogen - Wealth Tax):
-  - Tax on assets/wealth above certain threshold
-  - Standard rate: 36% of deemed return on assets
+    - Tax on deemed return from assets/wealth above certain threshold
+    - Deemed return can differ for savings vs investments
+    - Box3 tax rate is applied on total deemed return
   - Applies to savings, investments, real estate, etc.
   
 Key Concepts:
@@ -230,6 +233,6 @@ Key Concepts:
 2025 Changes:
   - Bracket thresholds indexed for inflation
   - General tax credit increased to €2,917
-  - Box3 rate remains at 36%
+    - Box3 tax on deemed return configured at 35%
   - Top marginal rate: 49.49% (on income above €1,011,724)
 """

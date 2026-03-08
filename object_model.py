@@ -97,6 +97,8 @@ class IncomeSourceType(Enum):
 class AssetType(Enum):
     """Types of assets for Box3 wealth tax."""
     SAVINGS = auto()
+    INVESTMENT = auto()
+    BUSINESS = auto()
     STOCKS = auto()
     BONDS = auto()
     REAL_ESTATE = auto()
@@ -240,6 +242,20 @@ class Person:
     def total_asset_value(self) -> Decimal:
         """Calculate total asset value."""
         return sum((asset.value for asset in self.assets), Decimal(0))
+
+    def total_savings_assets(self) -> Decimal:
+        """Calculate total value of savings assets only."""
+        return sum(
+            (asset.value for asset in self.assets if asset.asset_type == AssetType.SAVINGS),
+            Decimal(0)
+        )
+
+    def total_investment_assets(self) -> Decimal:
+        """Calculate total value of non-savings (investment) assets."""
+        return sum(
+            (asset.value for asset in self.assets if asset.asset_type != AssetType.SAVINGS),
+            Decimal(0)
+        )
     
     def total_deductions(self) -> Decimal:
         """Calculate total deductions."""
@@ -336,6 +352,14 @@ class Household:
     def total_asset_value(self) -> Decimal:
         """Calculate combined asset value of all members."""
         return sum((member.total_asset_value() for member in self.members), Decimal(0))
+
+    def total_savings_assets(self) -> Decimal:
+        """Calculate combined savings assets for all members."""
+        return sum((member.total_savings_assets() for member in self.members), Decimal(0))
+
+    def total_investment_assets(self) -> Decimal:
+        """Calculate combined non-savings investment assets for all members."""
+        return sum((member.total_investment_assets() for member in self.members), Decimal(0))
     
     def add_member(self, person: Person) -> None:
         """Add a person to the household."""
@@ -351,24 +375,53 @@ class Household:
     # Box3 Wealth Tax Calculations
     # ========================================================================
     
-    def compute_box3_tax(self, tax_rate: Decimal) -> Decimal:
+    def compute_box3_deemed_return(
+        self,
+        savings_return_rate: Decimal,
+        investment_return_rate: Decimal,
+    ) -> Decimal:
         """
-        Compute total Box3 tax (wealth tax) for the household.
+        Compute deemed return for Box3 by splitting savings and investments.
+        """
+        savings_return = self.total_savings_assets() * savings_return_rate
+        investment_return = self.total_investment_assets() * investment_return_rate
+        return savings_return + investment_return
+
+    def compute_box3_tax(
+        self,
+        tax_rate: Decimal,
+        savings_return_rate: Decimal = Decimal("0.01"),
+        investment_return_rate: Decimal = Decimal("0.06"),
+    ) -> Decimal:
+        """
+        Compute total Box3 tax for the household.
+
+        Box3 formula used:
+        1) Split wealth into savings and investments.
+        2) Apply deemed return percentages per category.
+        3) Apply Box3 tax rate to total deemed return.
         
         Args:
-            tax_rate: Tax rate for wealth tax as decimal (e.g., 0.32 for 32%)
+            tax_rate: Tax rate on deemed return as decimal (e.g., 0.35 for 35%)
+            savings_return_rate: Deemed return rate for savings assets.
+            investment_return_rate: Deemed return rate for investment assets.
             
         Returns:
             Total Box3 tax liability
         """
-        total_wealth = self.total_asset_value()
-        return total_wealth * tax_rate
+        deemed_return = self.compute_box3_deemed_return(
+            savings_return_rate,
+            investment_return_rate,
+        )
+        return deemed_return * tax_rate
     
     def allocate_box3_between_partners(
         self,
         tax_rate: Decimal,
         strategy: AllocationStrategy = AllocationStrategy.EQUAL,
-        custom_allocation: Optional[Dict[str, Decimal]] = None
+        custom_allocation: Optional[Dict[str, Decimal]] = None,
+        savings_return_rate: Decimal = Decimal("0.01"),
+        investment_return_rate: Decimal = Decimal("0.06"),
     ) -> Dict[str, Decimal]:
         """
         Allocate Box3 tax burden between household members.
@@ -377,11 +430,17 @@ class Household:
             tax_rate: Tax rate for wealth tax
             strategy: Allocation strategy to use
             custom_allocation: Optional custom allocation per BSN
+            savings_return_rate: Deemed return rate for savings assets.
+            investment_return_rate: Deemed return rate for investment assets.
             
         Returns:
             Dictionary mapping BSN to allocated tax amount
         """
-        total_tax = self.compute_box3_tax(tax_rate)
+        total_tax = self.compute_box3_tax(
+            tax_rate,
+            savings_return_rate,
+            investment_return_rate,
+        )
         allocation = {}
         
         if strategy == AllocationStrategy.EQUAL:
@@ -390,15 +449,23 @@ class Household:
                 allocation[member.bsn] = per_person
         
         elif strategy == AllocationStrategy.PROPORTIONAL:
-            total_wealth = self.total_asset_value()
-            if total_wealth == 0:
+            per_member_deemed_return = {
+                member.bsn: (
+                    member.total_savings_assets() * savings_return_rate
+                    + member.total_investment_assets() * investment_return_rate
+                )
+                for member in self.members
+            }
+            total_deemed_return = sum(per_member_deemed_return.values(), Decimal(0))
+
+            if total_deemed_return == 0:
                 per_person = total_tax / len(self.members) if self.members else Decimal(0)
                 for member in self.members:
                     allocation[member.bsn] = per_person
             else:
                 for member in self.members:
-                    wealth_ratio = member.total_asset_value() / total_wealth
-                    allocation[member.bsn] = total_tax * wealth_ratio
+                    return_ratio = per_member_deemed_return[member.bsn] / total_deemed_return
+                    allocation[member.bsn] = total_tax * return_ratio
         
         elif strategy == AllocationStrategy.CUSTOM:
             if not custom_allocation:
@@ -418,7 +485,9 @@ class Household:
         self,
         brackets: List[TaxBracket],
         box3_rate: Decimal,
-        box3_strategy: AllocationStrategy = AllocationStrategy.EQUAL
+        box3_strategy: AllocationStrategy = AllocationStrategy.EQUAL,
+        box3_savings_return_rate: Decimal = Decimal("0.01"),
+        box3_investment_return_rate: Decimal = Decimal("0.06"),
     ) -> Dict[str, Decimal]:
         """
         Compute total tax liability for all household members.
@@ -427,7 +496,12 @@ class Household:
             Dictionary mapping BSN to net tax liability (Box1 + Box3 share)
         """
         # Compute Box3 allocation
-        box3_allocation = self.allocate_box3_between_partners(box3_rate, box3_strategy)
+        box3_allocation = self.allocate_box3_between_partners(
+            box3_rate,
+            box3_strategy,
+            savings_return_rate=box3_savings_return_rate,
+            investment_return_rate=box3_investment_return_rate,
+        )
         
         result = {}
         for member in self.members:
@@ -448,8 +522,10 @@ class TaxYearConfig:
     """Configuration for a specific tax year."""
     year: int
     box1_brackets: List[TaxBracket]
-    box3_rate: Decimal
+    box3_rate: Decimal  # Tax on deemed return (e.g., 0.35 = 35%)
     general_tax_credit: Decimal  # Standard tax credit for residents
+    box3_savings_return_rate: Decimal = Decimal("0.01")
+    box3_investment_return_rate: Decimal = Decimal("0.06")
     description: str = ""
 
 

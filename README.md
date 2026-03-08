@@ -9,7 +9,7 @@ A production-ready Python domain model and interactive form for the Dutch tax sy
 ✅ **Interactive Tax Form** - User-friendly command-line form  
 ✅ **Multiple Income Sources** - Support for employment, self-employment, rental, pension, etc.  
 ✅ **Eigenwoningforfait 2025** - Automatic Box1 addition for owner-occupied homes (WOZ-based)  
-✅ **JSON Input Logging** - Web API stores submitted form payloads in `submissions/`  
+✅ **JSON Input Logging** - Web API stores one JSON file per `household_id` in `submissions/`  
 ✅ **Box3 Wealth Tax** - Flexible allocation strategies (equal, proportional, custom)  
 ✅ **Comprehensive Examples** - Demos for different scenarios  
 ✅ **Easy to Extend** - Add new tax years with minimal code  
@@ -230,12 +230,18 @@ Taxable Income = Gross Income + Eigenwoningforfait - Deductions
 ### Box3 (Wealth Tax)
 
 ```
-Box3 Tax = Total Assets × Tax Rate (36%)
+Deemed Return = (Savings × savings fictive return) + (Investments × investment fictive return)
+Box3 Tax = Deemed Return × Tax Rate
 ```
+
+For 2025 in this project:
+- Box3 tax rate: `35%`
+- Savings fictive return rate: `1.44%`
+- Investment fictive return rate: `5.88%`
 
 Allocation strategies:
 - **EQUAL**: Each person pays equal share
-- **PROPORTIONAL**: Based on individual wealth ratio
+- **PROPORTIONAL**: Based on individual deemed return ratio
 - **CUSTOM**: Manual allocation per person
 
 ## Adding a New Tax Year

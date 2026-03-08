@@ -9,6 +9,7 @@ from decimal import Decimal
 from datetime import datetime
 import json
 from pathlib import Path
+import re
 import traceback
 
 from object_model import (
@@ -22,15 +23,17 @@ app.config['SECRET_KEY'] = 'dutch-tax-calculator-secret'
 
 
 def save_input_data_to_json(data: dict) -> str:
-    """Persist submitted form data to a timestamped JSON file."""
+    """Persist submitted form data to a stable JSON file per household ID."""
     submissions_dir = Path(__file__).parent / "submissions"
     submissions_dir.mkdir(parents=True, exist_ok=True)
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-    file_path = submissions_dir / f"input_{timestamp}.json"
+    household_id = str(data.get("household_id", "WEB_001")).strip() or "WEB_001"
+    safe_household_id = re.sub(r"[^A-Za-z0-9_-]", "_", household_id)
+    file_path = submissions_dir / f"{safe_household_id}.json"
 
     payload = {
         "saved_at": datetime.now().isoformat(),
+        "household_id": household_id,
         "data": data,
     }
     file_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
@@ -181,11 +184,26 @@ def calculate_tax():
         
         # Calculate Box3
         strategy = AllocationStrategy[data.get('allocation_strategy', 'EQUAL')]
-        box3_tax = household.compute_box3_tax(config.box3_rate)
-        allocation = household.allocate_box3_between_partners(config.box3_rate, strategy)
+        box3_tax = household.compute_box3_tax(
+            config.box3_rate,
+            config.box3_savings_return_rate,
+            config.box3_investment_return_rate,
+        )
+        allocation = household.allocate_box3_between_partners(
+            config.box3_rate,
+            strategy,
+            savings_return_rate=config.box3_savings_return_rate,
+            investment_return_rate=config.box3_investment_return_rate,
+        )
         
         # Total calculation
-        total_tax_per_member = household.compute_total_tax(config.box1_brackets, config.box3_rate, strategy)
+        total_tax_per_member = household.compute_total_tax(
+            config.box1_brackets,
+            config.box3_rate,
+            strategy,
+            box3_savings_return_rate=config.box3_savings_return_rate,
+            box3_investment_return_rate=config.box3_investment_return_rate,
+        )
         total_tax = sum(total_tax_per_member.values(), Decimal('0'))
         total_assets = household.total_asset_value()
         total_income = household.total_gross_income()
@@ -202,6 +220,8 @@ def calculate_tax():
             'box1_total': float(total_box1),
             'box3_tax': float(box3_tax),
             'box3_rate': float(config.box3_rate * 100),
+            'box3_savings_return_rate': float(config.box3_savings_return_rate * 100),
+            'box3_investment_return_rate': float(config.box3_investment_return_rate * 100),
             'box3_allocation': {
                 name: float(amount) 
                 for name, amount in allocation.items()

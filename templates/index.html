@@ -27,77 +27,81 @@
                     <div class="form-section">
                         <h2 class="section-title">📋 Tax Information</h2>
                         <form id="taxForm">
-                            <!-- Household ID -->
-                            <div class="mb-3">
-                                <label for="householdId" class="form-label">Household ID</label>
-                                <input type="text" class="form-control" id="householdId" 
-                                       placeholder="e.g., HH2025001" value="HH2025001">
-                                <small class="text-muted">Optional identifier for your household</small>
-                            </div>
+                            <ul class="nav nav-tabs mb-3" id="inputTabs" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="household-tab" data-bs-toggle="tab" data-bs-target="#household-pane" type="button" role="tab" aria-controls="household-pane" aria-selected="true">1. Household</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="members-tab" data-bs-toggle="tab" data-bs-target="#members-pane" type="button" role="tab" aria-controls="members-pane" aria-selected="false">2. Members</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="review-tab" data-bs-toggle="tab" data-bs-target="#review-pane" type="button" role="tab" aria-controls="review-pane" aria-selected="false">3. Import & Calculate</button>
+                                </li>
+                            </ul>
 
-                            <!-- Number of Members -->
-                            <div class="mb-3">
-                                <label for="memberCount" class="form-label">Number of Household Members</label>
-                                <select class="form-select" id="memberCount">
-                                    <option value="1" selected>1 Person</option>
-                                    <option value="2">2 People (Couple/Family)</option>
-                                    <option value="3">3 People</option>
-                                    <option value="4">4 People</option>
-                                </select>
-                            </div>
-
-                            <!-- Members Section -->
-                            <div id="membersContainer"></div>
-
-                            <!-- Box3 Allocation Strategy -->
-                            <div class="card mt-4 allocation-card">
-                                <div class="card-header">
-                                    <h5 class="mb-0">💰 Box3 Allocation Strategy</h5>
-                                </div>
-                                <div class="card-body">
+                            <div class="tab-content" id="inputTabsContent">
+                                <div class="tab-pane fade show active" id="household-pane" role="tabpanel" aria-labelledby="household-tab" tabindex="0">
                                     <div class="mb-3">
-                                        <label for="allocationStrategy" class="form-label">Allocation Method</label>
-                                        <select class="form-select" id="allocationStrategy">
-                                            <option value="EQUAL" selected>Equal (50-50 split)</option>
-                                            <option value="PROPORTIONAL">Proportional (by income)</option>
-                                            <option value="CUSTOM">Custom Percentages</option>
+                                        <label for="householdId" class="form-label">Household ID</label>
+                                        <input type="text" class="form-control" id="householdId" placeholder="e.g., HH2025001" value="HH2025001">
+                                        <small class="text-muted">Optional identifier for your household</small>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="memberCount" class="form-label">Number of Household Members</label>
+                                        <select class="form-select" id="memberCount">
+                                            <option value="1" selected>1 Person</option>
+                                            <option value="2">2 People (Couple/Family)</option>
+                                            <option value="3">3 People</option>
+                                            <option value="4">4 People</option>
                                         </select>
-                                        <small class="text-muted">How household assets are allocated for Box3 tax</small>
+                                    </div>
+
+                                    <div class="card mt-4 allocation-card">
+                                        <div class="card-header">
+                                            <h5 class="mb-0">💰 Box3 Allocation Strategy</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="mb-3">
+                                                <label for="allocationStrategy" class="form-label">Allocation Method</label>
+                                                <select class="form-select" id="allocationStrategy">
+                                                    <option value="EQUAL" selected>Equal (50-50 split)</option>
+                                                    <option value="PROPORTIONAL">Proportional (by income)</option>
+                                                    <option value="CUSTOM">Custom Percentages</option>
+                                                </select>
+                                                <small class="text-muted">How household assets are allocated for Box3 tax</small>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            <!-- Load Saved JSON -->
-                            <div class="card mt-3">
-                                <div class="card-header">
-                                    <h5 class="mb-0">📂 Load Saved Input (JSON)</h5>
+                                <div class="tab-pane fade" id="members-pane" role="tabpanel" aria-labelledby="members-tab" tabindex="0">
+                                    <p class="text-muted mb-3">Vul per persoon de gegevens in. Inkomsten, aftrekposten, eigen woning en Box3 bezittingen zijn gescheiden gegroepeerd.</p>
+                                    <div id="membersContainer"></div>
                                 </div>
-                                <div class="card-body">
-                                    <div class="mb-2">
-                                        <label for="loadJsonFile" class="form-label">JSON File</label>
-                                        <input
-                                            type="file"
-                                            class="form-control"
-                                            id="loadJsonFile"
-                                            accept="application/json,.json"
-                                        >
+
+                                <div class="tab-pane fade" id="review-pane" role="tabpanel" aria-labelledby="review-tab" tabindex="0">
+                                    <div class="card mt-2">
+                                        <div class="card-header">
+                                            <h5 class="mb-0">📂 Load Saved Input (JSON)</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="mb-2">
+                                                <label for="loadJsonFile" class="form-label">JSON File</label>
+                                                <input type="file" class="form-control" id="loadJsonFile" accept="application/json,.json">
+                                            </div>
+                                            <button type="button" class="btn btn-outline-secondary" id="loadJsonBtn">Load JSON Into Form</button>
+                                            <small class="text-muted d-block mt-2">Supports files from the `submissions/` folder.</small>
+                                        </div>
                                     </div>
-                                    <button type="button" class="btn btn-outline-secondary" id="loadJsonBtn">
-                                        Load JSON Into Form
-                                    </button>
-                                    <small class="text-muted d-block mt-2">
-                                        Supports files from the `submissions/` folder.
-                                    </small>
-                                </div>
-                            </div>
 
-                            <!-- Submit Button -->
-                            <div class="d-grid gap-2 mt-4">
-                                <button type="submit" class="btn btn-primary btn-lg">
-                                    <span class="spinner-border spinner-border-sm d-none me-2" 
-                                          id="loadingSpinner" role="status" aria-hidden="true"></span>
-                                    Calculate Taxes
-                                </button>
+                                    <div class="d-grid gap-2 mt-4">
+                                        <button type="submit" class="btn btn-primary btn-lg">
+                                            <span class="spinner-border spinner-border-sm d-none me-2" id="loadingSpinner" role="status" aria-hidden="true"></span>
+                                            Calculate Taxes
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </form>
                     </div>
