@@ -126,7 +126,6 @@ const app = {
             const bsnEl = document.getElementById(`bsn-${i}`);
             const residencyEl = document.getElementById(`residency-${i}`);
             const withheldEl = document.getElementById(`withheld-${i}`);
-            const dividendTaxEl = document.getElementById(`dividend-tax-${i}`);
             const ownHomeEnabledEl = document.getElementById(`own-home-enabled-${i}`);
             const ownHomeWozEl = document.getElementById(`own-home-woz-${i}`);
             const ownHomePeriodEl = document.getElementById(`own-home-period-${i}`);
@@ -135,7 +134,6 @@ const app = {
             if (bsnEl) bsnEl.value = member.bsn || '';
             if (residencyEl) residencyEl.value = member.residency_status || 'RESIDENT';
             if (withheldEl) withheldEl.value = member.withheld_tax || 0;
-            if (dividendTaxEl) dividendTaxEl.value = member.dividend_tax_paid || 0;
 
             const hasOwnHome = !!member.own_home;
             if (ownHomeEnabledEl) ownHomeEnabledEl.checked = hasOwnHome;
@@ -169,7 +167,23 @@ const app = {
                     const row = assetRows[assetRows.length - 1];
                     row.querySelector('[data-type="asset-type"]').value = asset.type || 'SAVINGS';
                     row.querySelector('[data-type="asset-value"]').value = asset.value || '';
+                    row.querySelector('[data-type="asset-dividend-tax"]').value = asset.dividend_tax_paid || 0;
+                    this.toggleAssetDividendInput(row);
                 });
+            }
+
+            // Backward compatibility: older payloads stored dividend tax at member level.
+            const legacyDividendTax = member.dividend_tax_paid || 0;
+            if (legacyDividendTax > 0) {
+                const assetRows = document.querySelectorAll(`#assets-${i} .item-row`);
+                if (assetRows.length > 0) {
+                    const preferredRow = Array.from(assetRows).find((row) => {
+                        const t = row.querySelector('[data-type="asset-type"]').value;
+                        return t !== 'SAVINGS';
+                    }) || assetRows[0];
+                    preferredRow.querySelector('[data-type="asset-dividend-tax"]').value = legacyDividendTax;
+                    this.toggleAssetDividendInput(preferredRow);
+                }
             }
 
             if (Array.isArray(member.tax_credits)) {
@@ -279,8 +293,7 @@ const app = {
             <div class="subsection">
                 <label for="withheld-${memberNumber}" class="form-label">Ingehouden Loonheffing (€)</label>
                 <input type="number" class="form-control" id="withheld-${memberNumber}" placeholder="0.00" min="0" step="0.01" value="0">
-                <label for="dividend-tax-${memberNumber}" class="form-label mt-2">Betaalde Dividendbelasting (€)</label>
-                <input type="number" class="form-control" id="dividend-tax-${memberNumber}" placeholder="0.00" min="0" step="0.01" value="0">
+                <small class="text-muted d-block mt-2">Dividendbelasting vul je per beleggingsrekening in bij Vermogen (Box3).</small>
             </div>
 
             <!-- Assets -->
@@ -374,10 +387,27 @@ const app = {
                 ${optionsHtml}
             </select>
             <input type="number" class="form-control" placeholder="Waarde (€)" min="0" step="0.01" data-type="asset-value" required>
+            <input type="number" class="form-control" placeholder="Dividendbelasting (€; alleen beleggingen)" min="0" step="0.01" data-type="asset-dividend-tax" value="0">
             <button type="button" class="remove-item-btn" onclick="app.removeItem('${id}')">Verwijderen</button>
         `;
 
         assetList.appendChild(row);
+
+        const typeSelect = row.querySelector('[data-type="asset-type"]');
+        typeSelect.addEventListener('change', () => {
+            this.toggleAssetDividendInput(row);
+        });
+        this.toggleAssetDividendInput(row);
+    },
+
+    toggleAssetDividendInput(row) {
+        const type = row.querySelector('[data-type="asset-type"]').value;
+        const dividendInput = row.querySelector('[data-type="asset-dividend-tax"]');
+        const isSavings = type === 'SAVINGS';
+        dividendInput.disabled = isSavings;
+        if (isSavings) {
+            dividendInput.value = 0;
+        }
     },
 
     // Remove item from list
@@ -409,7 +439,6 @@ const app = {
                 incomes: [],
                 deductions: [],
                 withheld_tax: parseFloat(document.getElementById(`withheld-${i}`).value) || 0,
-                dividend_tax_paid: parseFloat(document.getElementById(`dividend-tax-${i}`).value) || 0,
                 tax_credits: [],
                 assets: []
             };
@@ -456,10 +485,13 @@ const app = {
             assetRows.forEach(row => {
                 const type = row.querySelector('[data-type="asset-type"]').value;
                 const value = row.querySelector('[data-type="asset-value"]').value;
+                const dividendTax = row.querySelector('[data-type="asset-dividend-tax"]').value;
+                const normalizedDividendTax = type === 'SAVINGS' ? 0 : (parseFloat(dividendTax) || 0);
                 if (value) {
                     member.assets.push({
                         type: type,
                         value: parseFloat(value),
+                        dividend_tax_paid: normalizedDividendTax,
                         description: type
                     });
                 }
@@ -574,7 +606,7 @@ const app = {
                         <span class="member-detail-value">${this.formatCurrency(details.withheld_tax)}</span>
                     </div>
                     <div class="member-detail-row">
-                        <span class="member-detail-label">Betaalde dividendbelasting:</span>
+                        <span class="member-detail-label">Betaalde dividendbelasting (totaal rekeningen):</span>
                         <span class="member-detail-value">${this.formatCurrency(details.dividend_tax_paid || 0)}</span>
                     </div>
                     <div class="member-detail-row">

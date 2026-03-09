@@ -129,11 +129,14 @@ class Asset:
     name: str
     asset_type: AssetType
     value: Decimal
+    dividend_tax_paid: Decimal = Decimal(0)
     description: str = ""
     
     def __post_init__(self):
         if self.value < 0:
             raise ValueError("Asset value cannot be negative")
+        if self.dividend_tax_paid < 0:
+            raise ValueError("Dividend tax paid cannot be negative")
 
 
 @dataclass
@@ -224,6 +227,7 @@ class Person:
     tax_credits: List[TaxCredit] = field(default_factory=list)
     own_home: Optional[OwnHome] = None
     withheld_tax: Decimal = Decimal(0)
+    # Legacy fallback. New preferred source is per-asset dividend_tax_paid.
     dividend_tax_paid: Decimal = Decimal(0)
     
     def __post_init__(self):
@@ -319,9 +323,21 @@ class Person:
         """Return the amount of tax already withheld (e.g., employer withholding)."""
         return self.withheld_tax
 
+    def total_dividend_tax_paid(self) -> Decimal:
+        """
+        Return total dividend tax paid across all assets.
+
+        Includes legacy person-level dividend_tax_paid for backward compatibility.
+        """
+        asset_level_total = sum(
+            (asset.dividend_tax_paid for asset in self.assets if asset.asset_type != AssetType.SAVINGS),
+            Decimal(0)
+        )
+        return asset_level_total + self.dividend_tax_paid
+
     def compute_prepaid_taxes(self) -> Decimal:
         """Return total taxes already paid (wage withholding + dividend tax)."""
-        return self.withheld_tax + self.dividend_tax_paid
+        return self.withheld_tax + self.total_dividend_tax_paid()
     
     def compute_net_tax_liability(self, brackets: List[TaxBracket]) -> Decimal:
         """

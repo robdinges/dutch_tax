@@ -64,7 +64,7 @@ In `Person`:
 - `total_deductions()`
 - `compute_taxable_income()` = `max(0, gross + eigenwoningforfait - deductions)`
 - `compute_box1_tax(brackets)` = som per schijf
-- `compute_prepaid_taxes()` = `withheld_tax + dividend_tax_paid`
+- `compute_prepaid_taxes()` = `withheld_tax + som(dividend_tax_paid per beleggingsrekening)`
 
 ### 3.2 Box3 op huishoudniveau
 

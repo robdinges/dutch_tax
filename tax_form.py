@@ -330,12 +330,23 @@ class TaxForm:
                     "5": AssetType.CRYPTO,
                     "6": AssetType.OTHER,
                 }
+
+                dividend_tax_paid = Decimal(0)
+                selected_type = asset_types.get(asset_type)
+                if selected_type != AssetType.SAVINGS and self.confirm("Dividendbelasting betaald op deze beleggingsrekening?", default=False):
+                    dividend_tax_paid = self.get_input(
+                        "Dividendbelasting bedrag",
+                        required=False,
+                        input_type=Decimal,
+                        hint="Totaal van dividendbelasting op deze rekening"
+                    ) or Decimal(0)
                 
                 person.assets.append(
                     Asset(
                         name=asset_name,
-                        asset_type=asset_types.get(asset_type),
-                        value=value
+                        asset_type=selected_type,
+                        value=value,
+                        dividend_tax_paid=dividend_tax_paid,
                     )
                 )
                 
@@ -423,6 +434,8 @@ class TaxForm:
         box1_tax = member.compute_box1_tax(self.config.box1_brackets)
         credits = member.total_tax_credits()
         withheld = member.compute_withheld_tax()
+        dividend_tax_paid = member.total_dividend_tax_paid()
+        prepaid_taxes = member.compute_prepaid_taxes()
         net_box1 = member.compute_net_tax_liability(self.config.box1_brackets)
         
         # Income breakdown
@@ -443,6 +456,14 @@ class TaxForm:
         # Tax calculation
         print(f"\n{Colors.BOLD}Box1 Tax Calculation:{Colors.RESET}")
         print(f"  {'Taxable Income':<35} €{taxable:>12,.2f}")
+        for bracket in sorted(self.config.box1_brackets, key=lambda b: b.lower_bound):
+            taxable_in_bracket = bracket.taxable_amount(taxable)
+            if taxable_in_bracket > 0:
+                tax_in_bracket = taxable_in_bracket * bracket.rate
+                print(
+                    f"  • {bracket.description:<31} "
+                    f"€{taxable_in_bracket:>10,.2f} x {float(bracket.rate) * 100:>5.2f}% = €{tax_in_bracket:>10,.2f}"
+                )
         print(f"  {'Tax (before credits)':<35} €{box1_tax:>12,.2f}")
         
         if credits > 0:
@@ -451,6 +472,10 @@ class TaxForm:
         
         if withheld > 0:
             print(f"  {'Withheld Tax':<35} -€{withheld:>11,.2f}")
+        if dividend_tax_paid > 0:
+            print(f"  {'Dividend Tax Paid (assets)':<35} -€{dividend_tax_paid:>11,.2f}")
+        if prepaid_taxes > 0:
+            print(f"  {'Total Prepaid Taxes':<35} -€{prepaid_taxes:>11,.2f}")
         
         print(f"  {Colors.DIM}{'─' * 50}{Colors.RESET}")
         if net_box1 > 0:
@@ -485,12 +510,38 @@ class TaxForm:
     def _display_tax_results(self):
         """Display final tax liability results."""
         self.print_section("Final Tax Calculation")
-        
-        total_box3 = self.household.compute_box3_tax(self.config.box3_rate)
+
+        tax_free_assets = (
+            self.config.box3_tax_free_assets_partner
+            if len(self.household.members) > 1
+            else self.config.box3_tax_free_assets_single
+        )
+        total_assets = self.household.total_asset_value()
+        corrected_assets = max(Decimal(0), total_assets - tax_free_assets)
+        correction_factor = (corrected_assets / total_assets) if total_assets > 0 else Decimal(0)
+
+        savings_assets = self.household.total_savings_assets()
+        investment_assets = self.household.total_investment_assets()
+        savings_deemed_return = savings_assets * self.config.box3_savings_return_rate
+        investment_deemed_return = investment_assets * self.config.box3_investment_return_rate
+        corrected_savings_deemed_return = savings_deemed_return * correction_factor
+        corrected_investment_deemed_return = investment_deemed_return * correction_factor
+        total_deemed_return = savings_deemed_return + investment_deemed_return
+        corrected_deemed_return = corrected_savings_deemed_return + corrected_investment_deemed_return
+
+        total_box3 = self.household.compute_box3_tax(
+            self.config.box3_rate,
+            self.config.box3_savings_return_rate,
+            self.config.box3_investment_return_rate,
+            tax_free_assets,
+        )
         total_tax = self.household.compute_total_tax(
             self.config.box1_brackets,
             self.config.box3_rate,
-            AllocationStrategy.EQUAL
+            AllocationStrategy.EQUAL,
+            box3_savings_return_rate=self.config.box3_savings_return_rate,
+            box3_investment_return_rate=self.config.box3_investment_return_rate,
+            box3_tax_free_assets=tax_free_assets,
         )
         
         print(f"\n{Colors.BOLD}Tax Breakdown:{Colors.RESET}")
@@ -511,8 +562,26 @@ class TaxForm:
         
         if total_box3 > 0:
             print(f"  {Colors.BOLD}Box3 Summary (Equal allocation):{Colors.RESET}")
-            print(f"    Total Assets:     €{self.household.total_asset_value():>14,.2f}")
-            print(f"    At 36% Rate:      €{total_box3:>14,.2f}\n")
+            print(f"    Total Assets:                     €{total_assets:>14,.2f}")
+            print(f"    Heffingsvrij vermogen:            €{tax_free_assets:>14,.2f}")
+            print(f"    Gecorrigeerd vermogen:            €{corrected_assets:>14,.2f}")
+            print(f"    Correctiefactor:                   {float(correction_factor) * 100:>13.2f}%")
+            print(f"    Spaargeld:                        €{savings_assets:>14,.2f}")
+            print(f"    Beleggingen:                      €{investment_assets:>14,.2f}")
+            print(
+                f"    Fictief rendement spaargeld "
+                f"({float(self.config.box3_savings_return_rate) * 100:.2f}%): €{savings_deemed_return:>14,.2f}"
+            )
+            print(
+                f"    Fictief rendement beleggingen "
+                f"({float(self.config.box3_investment_return_rate) * 100:.2f}%): €{investment_deemed_return:>14,.2f}"
+            )
+            print(f"    Totaal fictief rendement:         €{total_deemed_return:>14,.2f}")
+            print(
+                f"    Gecorrigeerd fictief rendement "
+                f"((gecorrigeerd_vermogen/totaal_vermogen)*fictief_rendement): €{corrected_deemed_return:>14,.2f}"
+            )
+            print(f"    Box3 belasting ({float(self.config.box3_rate) * 100:.2f}%):      €{total_box3:>14,.2f}\n")
         
         print(f"  {Colors.DIM}{'─' * 50}{Colors.RESET}")
         

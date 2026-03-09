@@ -247,17 +247,47 @@ def demo_household_tax_form():
     print()
     
     # Box3 allocation
-    total_box3 = household.compute_box3_tax(config.box3_rate)
-    print(f"Total Box3 Tax (36%): € {total_box3:,.2f}")
+    tax_free_assets = config.box3_tax_free_assets_partner
+    total_assets = household.total_asset_value()
+    corrected_assets = max(Decimal(0), total_assets - tax_free_assets)
+    correction_factor = (corrected_assets / total_assets) if total_assets > 0 else Decimal(0)
+    savings_assets = household.total_savings_assets()
+    investment_assets = household.total_investment_assets()
+    savings_deemed_return = savings_assets * config.box3_savings_return_rate
+    investment_deemed_return = investment_assets * config.box3_investment_return_rate
+    corrected_deemed_return = (savings_deemed_return + investment_deemed_return) * correction_factor
+
+    total_box3 = household.compute_box3_tax(
+        config.box3_rate,
+        config.box3_savings_return_rate,
+        config.box3_investment_return_rate,
+        tax_free_assets,
+    )
+    print(f"Heffingsvrij vermogen (partners): € {tax_free_assets:,.2f}")
+    print(f"Gecorrigeerd vermogen: € {corrected_assets:,.2f}")
+    print(f"Correctiefactor: {float(correction_factor) * 100:.2f}%")
+    print(f"Fictief rendement spaargeld ({float(config.box3_savings_return_rate) * 100:.2f}%): € {savings_deemed_return:,.2f}")
+    print(f"Fictief rendement beleggingen ({float(config.box3_investment_return_rate) * 100:.2f}%): € {investment_deemed_return:,.2f}")
+    print(
+        "Gecorrigeerd fictief rendement ((gecorrigeerd_vermogen / totaal_vermogen) * fictief_rendement): "
+        f"€ {corrected_deemed_return:,.2f}"
+    )
+    print(f"Total Box3 Tax ({float(config.box3_rate) * 100:.2f}%): € {total_box3:,.2f}")
     print()
     
     allocation_equal = household.allocate_box3_between_partners(
         config.box3_rate,
-        AllocationStrategy.EQUAL
+        AllocationStrategy.EQUAL,
+        savings_return_rate=config.box3_savings_return_rate,
+        investment_return_rate=config.box3_investment_return_rate,
+        tax_free_assets=tax_free_assets,
     )
     allocation_proportional = household.allocate_box3_between_partners(
         config.box3_rate,
-        AllocationStrategy.PROPORTIONAL
+        AllocationStrategy.PROPORTIONAL,
+        savings_return_rate=config.box3_savings_return_rate,
+        investment_return_rate=config.box3_investment_return_rate,
+        tax_free_assets=tax_free_assets,
     )
     
     print("Box3 Allocation (Equal Strategy):")
@@ -265,7 +295,7 @@ def demo_household_tax_form():
         member = next(m for m in household.members if m.bsn == bsn)
         print(f"  • {member.name}: € {tax:,.2f}")
     
-    print("\nBox3 Allocation (Proportional Strategy - based on wealth):")
+    print("\nBox3 Allocation (Proportional Strategy - based on fictief rendement):")
     for bsn, tax in allocation_proportional.items():
         member = next(m for m in household.members if m.bsn == bsn)
         wealth_pct = (member.total_asset_value() / household.total_asset_value()) * 100

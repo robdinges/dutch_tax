@@ -62,10 +62,10 @@ class IncomeTaxApproachTests(unittest.TestCase):
                 TaxCredit(name="Arbeidskorting", amount=Decimal("2000"))
             ],
             withheld_tax=Decimal("9000"),
-            dividend_tax_paid=Decimal("300"),
         )
         person.assets = [
             Asset(name="Savings", asset_type=AssetType.SAVINGS, value=Decimal("100000")),
+            Asset(name="Broker", asset_type=AssetType.INVESTMENT, value=Decimal("50000"), dividend_tax_paid=Decimal("300")),
         ]
 
         household = Household(household_id="HHB", members=[person])

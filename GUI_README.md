@@ -74,7 +74,7 @@ Per persoon:
 - ingehouden loonheffing
 - betaalde dividendbelasting
 - Vermogen (Box3):
-- type + waarde
+- type + waarde + dividendbelasting per beleggingsrekening
 
 ### 3. Importeren & Berekenen
 
@@ -92,11 +92,14 @@ Toont:
 - Box3 fictief rendement
 - toegepast heffingsvrij vermogen
 - Box3 gecorrigeerd fictief rendement
+- correctiefactor: `(gecorrigeerd_vermogen / totaal_vermogen)`
 - verzamelinkomen
 - bruto inkomstenbelasting (Box1 + Box3)
 - voorheffingen (loon + dividend)
 - heffingskortingen
 - eindafrekening
+
+Zie ook `DO_BESTAND.md` voor volledige specificatie van invoervelden, exacte formules en outputvelden.
 
 ## JSON-invoer opslaan/laden
 

@@ -183,16 +183,40 @@ def example_4_household_box3():
     household.add_member(spouse1)
     household.add_member(spouse2)
     
-    total_box3 = household.compute_box3_tax(config.box3_rate)
+    tax_free_assets = config.box3_tax_free_assets_partner
+    deemed_return = household.compute_box3_deemed_return(
+        config.box3_savings_return_rate,
+        config.box3_investment_return_rate,
+    )
+    corrected_deemed_return = household.compute_box3_corrected_deemed_return(
+        config.box3_savings_return_rate,
+        config.box3_investment_return_rate,
+        tax_free_assets,
+    )
+    total_box3 = household.compute_box3_tax(
+        config.box3_rate,
+        config.box3_savings_return_rate,
+        config.box3_investment_return_rate,
+        tax_free_assets,
+    )
     print(f"Total household assets: € {household.total_asset_value():,.2f}")
-    print(f"Total Box3 tax (36%): € {total_box3:,.2f}")
+    print(f"Heffingsvrij vermogen (partners): € {tax_free_assets:,.2f}")
+    print(f"Fictief rendement totaal: € {deemed_return:,.2f}")
+    print(
+        "Gecorrigeerd fictief rendement ((gecorrigeerd_vermogen / totaal_vermogen) * fictief_rendement): "
+        f"€ {corrected_deemed_return:,.2f}"
+    )
+    print(f"Total Box3 tax ({float(config.box3_rate) * 100:.2f}%): € {total_box3:,.2f}")
     print()
     
     # Equal allocation
     print("EQUAL allocation:")
     equal = household.allocate_box3_between_partners(
         config.box3_rate,
-        AllocationStrategy.EQUAL
+        AllocationStrategy.EQUAL,
+        savings_return_rate=config.box3_savings_return_rate,
+        investment_return_rate=config.box3_investment_return_rate,
+        tax_free_assets=tax_free_assets,
     )
     for bsn, tax in equal.items():
         member = next(m for m in household.members if m.bsn == bsn)
@@ -203,7 +227,10 @@ def example_4_household_box3():
     print("PROPORTIONAL allocation (based on wealth):")
     proportional = household.allocate_box3_between_partners(
         config.box3_rate,
-        AllocationStrategy.PROPORTIONAL
+        AllocationStrategy.PROPORTIONAL,
+        savings_return_rate=config.box3_savings_return_rate,
+        investment_return_rate=config.box3_investment_return_rate,
+        tax_free_assets=tax_free_assets,
     )
     for bsn, tax in proportional.items():
         member = next(m for m in household.members if m.bsn == bsn)

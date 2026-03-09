@@ -165,7 +165,7 @@ def calculate_tax():
                 if member_data.get('withheld_tax'):
                     person.withheld_tax = Decimal(str(member_data.get('withheld_tax')))
 
-                # Add paid dividend tax (optional)
+                # Backward compatibility for older payloads where dividend tax was person-level.
                 if member_data.get('dividend_tax_paid'):
                     person.dividend_tax_paid = Decimal(str(member_data.get('dividend_tax_paid')))
 
@@ -188,6 +188,7 @@ def calculate_tax():
                             name=asset.get('description', asset.get('type', 'Asset')),
                             asset_type=asset_type,
                             value=Decimal(str(asset.get('value', 0))),
+                            dividend_tax_paid=Decimal(str(asset.get('dividend_tax_paid', 0))),
                             description=asset.get('description', '')
                         )
                     )
@@ -227,7 +228,7 @@ def calculate_tax():
                 'box1_brackets': bracket_breakdown,
                 'tax_credits': float(person.total_tax_credits()),
                 'withheld_tax': float(person.withheld_tax),
-                'dividend_tax_paid': float(person.dividend_tax_paid),
+                'dividend_tax_paid': float(person.total_dividend_tax_paid()),
                 'prepaid_taxes': float(person.compute_prepaid_taxes()),
                 'net_liability': float(person.compute_net_tax_liability(config.box1_brackets)),
                 'assets': float(person.total_asset_value()),
