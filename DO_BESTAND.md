@@ -1,197 +1,157 @@
-# DO Bestand - Invoer, Berekeningen en Output
+# DO Bestand - Invoer, Berekening en Output (Procesflow 2026)
 
-Dit document beschrijft exact welke invoervelden de applicatie verwacht, welke berekeningen worden uitgevoerd en welke outputvelden worden teruggegeven/getoond.
+Dit document beschrijft de actuele gegevensstructuur en de exacte rekenstappen in de webapp.
 
-## 1. Verwachte invoervelden
-
-Invoer gebeurt als JSON payload (web API) of equivalent via de CLI-form.
+## 1. Invoerstructuur
 
 ### 1.1 Huishouden
 
 - `household_id` (string)
-- `allocation_strategy` (string): `EQUAL`, `PROPORTIONAL`, `CUSTOM`
-- `members` (array van personen)
+- `fiscal_partner` (boolean)
+- `children_count` (number)
+- `allocation_strategy` (`EQUAL` | `PROPORTIONAL` | `CUSTOM`)
+- `custom_allocation` (map `member_id -> percentage`)
+- `members` (array)
 
 ### 1.2 Persoon (`members[]`)
 
+- `member_id` (string)
 - `full_name` (string)
 - `bsn` (string)
-- `residency_status` (string): `RESIDENT` of `NON_RESIDENT`
-- `withheld_tax` (number, >= 0)
-- `incomes` (array)
-- `deductions` (array)
-- `tax_credits` (array)
-- `assets` (array)
-- `own_home` (object, optioneel)
+- `wage_withholding` (number)
+- `dividend_withholding` (number)
+- `other_prepaid_taxes` (number, optioneel)
+- `box1` (object)
+- `box2` (object)
+- `box3` (object)
 
-### 1.3 Inkomsten (`incomes[]`)
+### 1.3 Box 1
 
-- `type` (string): `EMPLOYMENT`, `SELF_EMPLOYMENT`, `RENTAL`, `PENSION`, `INVESTMENT`, `OTHER`
-- `amount` (number, >= 0)
-- `description` (string, optioneel)
+- `box1.incomes[]`: `{ type, amount }`
+- `box1.deductions[]`: `{ type, amount }`
+- `box1.own_home`: `{ has_own_home, woz_value, period_fraction }`
+- `box1.tax_credits[]`: `{ name, amount }`
 
-### 1.4 Aftrekposten (`deductions[]`)
+### 1.4 Box 2
 
-- `description` (string)
-- `amount` (number, >= 0)
+- `box2.has_substantial_interest` (boolean)
+- `box2.dividend_income` (number)
+- `box2.sale_gain` (number)
+- `box2.acquisition_price` (number)
 
-### 1.5 Heffingskortingen (`tax_credits[]`)
+### 1.5 Box 3
 
-- `name` (string)
-- `amount` (number, >= 0)
-- `description` (string, optioneel)
+- `box3.savings` (number)
+- `box3.investments` (number)
+- `box3.other_assets` (number)
+- `box3.debts` (number)
 
-### 1.6 Vermogen (`assets[]`)
+## 2. Berekeningsstappen
 
-- `type` (string): `SAVINGS`, `INVESTMENT`, `REAL_ESTATE`, `BUSINESS`, `OTHER` (intern ook extra assettypes ondersteund)
-- `value` (number, >= 0)
-- `dividend_tax_paid` (number, >= 0): dividendbelasting betaald op deze beleggingsrekening (alleen niet-spaarvermogen)
-- `description` (string, optioneel)
+### 2.1 Box 1 (per persoon)
 
-### 1.7 Eigen woning (`own_home`)
+1. `gross_income = sum(incomes.amount)`
+2. `eigenwoningforfait` op basis van WOZ en periode (indien eigen woning)
+3. `deductions = sum(deductions.amount)`
+4. `taxable_income = max(0, gross_income + eigenwoningforfait - deductions)`
+5. Box 1 belasting via progressieve schijven uit tax-config
+6. Heffingskortingen worden niet automatisch bepaald:
+- gebruiker voert meerdere losse posten in
+- totaal heffingskortingen = som van ingevoerde posten
 
-- `woz_value` (number, >= 0)
-- `period_fraction` (number tussen 0 en 1)
+### 2.2 Box 2 (per persoon)
 
-## 2. Exacte berekeningen
+Als `has_substantial_interest = true`:
 
-De berekeningen volgen de domeinlogica in `object_model.py` en de jaarconfiguratie in `tax_brackets.py`.
+- `box2_taxable_income = max(0, dividend_income + sale_gain - acquisition_price)`
+- `box2_tax = box2_taxable_income * box2_rate`
 
-### 2.1 Box1 - per persoon
+Anders:
 
-1. `total_gross_income = som(inkomsten)`
-2. `eigenwoningforfait = functie(woz_value, period_fraction)` indien eigen woning
-3. `total_deductions = som(aftrekposten)`
-4. `taxable_income = max(0, total_gross_income + eigenwoningforfait - total_deductions)`
-5. Box1-schijven:
-- Voor elke schijf: `taxable_in_bracket = bracket.taxable_amount(taxable_income)`
-- `tax_in_bracket = taxable_in_bracket * bracket.rate`
-6. `box1_tax = som(tax_in_bracket)`
-7. `tax_after_credits = max(0, box1_tax - total_tax_credits)`
-8. `net_liability = max(0, tax_after_credits - withheld_tax)`
-9. `dividend_tax_paid_total = som(asset.dividend_tax_paid voor assets met type != SAVINGS)`
-10. `prepaid_taxes = withheld_tax + dividend_tax_paid_total`
+- `box2_taxable_income = 0`
+- `box2_tax = 0`
 
-### 2.2 Box3 - huishouden
+### 2.3 Box 3 (huishouden)
 
-1. Splitsing vermogen:
-- `savings_assets = som(assets met type SAVINGS)`
-- `investment_assets = som(assets met type != SAVINGS)`
-- `total_assets = savings_assets + investment_assets`
+1. Vermogen per persoon:
+- `gross_assets = savings + investments + other_assets`
+- `net_assets = max(0, gross_assets - debts)`
 
-2. Fictief rendement:
-- `savings_deemed_return = savings_assets * box3_savings_return_rate`
-- `investment_deemed_return = investment_assets * box3_investment_return_rate`
-- `deemed_return = savings_deemed_return + investment_deemed_return`
+2. Huishoudtotalen:
+- `total_net_assets = sum(net_assets)`
+- `tax_free_assets = single_heffingsvrij_vermogen * aantal_personen`
 
-3. Heffingsvrij vermogen:
-- `tax_free_assets = box3_tax_free_assets_single` bij 1 persoon
-- `tax_free_assets = box3_tax_free_assets_partner` bij 2+ personen
+3. Fictief rendement:
+- eerst nettofactor toepassen om schulden mee te nemen
+- `deemed_return_savings = net_savings * savings_return_rate`
+- `deemed_return_non_savings = net_non_savings * investment_return_rate`
+- `deemed_return_total = deemed_return_savings + deemed_return_non_savings`
 
-4. Correctie volgens formule:
-- `corrected_assets = max(total_assets - tax_free_assets, 0)`
-- `correction_factor = corrected_assets / total_assets` (0 als total_assets = 0)
-- `corrected_deemed_return = correction_factor * deemed_return`
+4. Correctie heffingsvrij vermogen:
+- `corrected_assets = max(total_net_assets - tax_free_assets, 0)`
+- `correction_factor = corrected_assets / total_net_assets`
+- `box3_income = deemed_return_total * correction_factor`
 
-Equivalent geformuleerd:
-- `(gecorrigeerd_vermogen / totaal_vermogen) * fictief_rendement = inkomsten uit vermogen van box 3`
+5. Box 3 belasting:
+- `box3_tax = box3_income * box3_rate`
 
-5. Box3 belasting:
-- `box3_tax = corrected_deemed_return * box3_rate`
+6. Verdeling Box 3 belasting:
+- `EQUAL`: gelijk
+- `PROPORTIONAL`: naar netto vermogen
+- `CUSTOM`: op basis van percentages
 
-6. Verdeling Box3 over personen:
-- `EQUAL`: gelijke delen
-- `PROPORTIONAL`: verhouding op basis van fictief rendement per persoon
-- `CUSTOM`: opgegeven custom-verdeling
+### 2.4 Totale belasting en verrekening
 
-### 2.3 Huishoudtotalen en eindafrekening
-
-1. `box1_taxable_income_total = som(taxable_income per persoon)`
-2. `verzamelinkomen = box1_taxable_income_total + corrected_deemed_return`
-3. `gross_income_tax = box1_total + box3_tax`
-4. `total_tax_credits = som(heffingskortingen per persoon)`
-5. `total_prepaid_taxes = som(withheld_tax + dividend_tax_paid_total per persoon)`
-6. `net_settlement = gross_income_tax - total_tax_credits - total_prepaid_taxes`
+- `box1_box3_tax = box1_total + box3_tax`
+- Premies volksverzekeringen op premie-basis `min(box1_taxable_income_total, 19.832)`:
+- `AOW = 0.0%`
+- `Anw = 0.1%`
+- `Wlz = 9.65%`
+- `gross_income_tax = box1_box3_tax + box2_total + premie_totaal`
+- `total_tax_credits = sum(member credits)`
+- `total_prepaid_taxes = sum(wage_withholding + dividend_withholding + other_prepaid_taxes)`
+- `net_settlement = gross_income_tax - total_tax_credits - total_prepaid_taxes`
 
 Interpretatie:
-- `net_settlement > 0`: te betalen
-- `net_settlement < 0`: te ontvangen
+
+- `net_settlement >= 0` -> `TE_BETALEN`
+- `net_settlement < 0` -> `TERUGGAAF`
 
 ## 3. Outputvelden
 
-### 3.1 API output (`POST /api/calculate`)
+### 3.1 Response hoofdvelden
 
 - `success`
-- `box1_breakdown` (per persoon):
-- `gross_income`
-- `deductions`
-- `taxable_income`
-- `box1_tax`
-- `box1_brackets` (toegepaste schijven)
-- `tax_credits`
-- `withheld_tax`
-- `dividend_tax_paid` (totaal over alle beleggingsrekeningen van de persoon)
-- `prepaid_taxes`
-- `net_liability`
-- `assets`
-- `box1_total`
-- `box1_taxable_income_total`
-- `box1_brackets_applied` (geaggregeerde schijven eindafrekening)
-- `box3_tax`
-- `box3_rate`
-- `box3_savings_return_rate`
-- `box3_investment_return_rate`
-- `box3_savings_assets`
-- `box3_investment_assets`
-- `box3_savings_deemed_return`
-- `box3_investment_deemed_return`
-- `box3_correction_factor`
-- `box3_corrected_savings_deemed_return`
-- `box3_corrected_investment_deemed_return`
-- `box3_deemed_return`
-- `box3_corrected_deemed_return`
-- `box3_tax_free_assets`
-- `box3_allocation`
-- `total_tax`
-- `gross_income_tax`
-- `verzamelinkomen`
-- `total_prepaid_taxes`
-- `total_tax_credits`
-- `net_settlement`
-- `total_assets`
-- `total_income`
-- `effective_tax_rate`
-- `general_tax_credit`
 - `tax_year`
+- `fiscal_partner`
+- `allocation_strategy`
+- `members[]`
+- `box1`
+- `box2`
+- `box3`
+- `settlement`
+- `verzamelinkomen`
+- `filing_steps`
 - `input_saved_to`
 
-### 3.2 GUI outputvelden (resultatenpaneel)
+### 3.2 Settlement-object
 
-- Samenvatting:
-- `totalTaxAmount`
-- `effectiveRateAmount`
-- Box1:
-- `box1Details`
-- `box1Total`
-- Box3:
-- `totalAssets`
-- `box3Rate`
-- `box3Allocation`
-- `box3Total`
-- Procesflow/Eindafrekening:
-- `box1BracketApplication`
-- `box3SavingsAssets`
-- `box3SavingsDeemedReturn` (gecorrigeerd)
-- `box3InvestmentAssets`
-- `box3InvestmentDeemedReturn` (gecorrigeerd)
-- `box3CorrectionFactor`
-- `box1TaxableIncomeTotal`
-- `box3DeemedReturn`
-- `box3TaxFreeAssets`
-- `box3CorrectedDeemedReturn`
-- `verzamelinkomen`
-- `grossIncomeTax`
-- `totalPrepaidTaxes`
-- `totalTaxCredits`
-- `netSettlement`
-- `finalTotalTax`
+- `gross_income_tax`
+- `total_tax_credits`
+- `total_prepaid_taxes`
+- `net_settlement`
+- `result_type`
+- `effective_rate`
+
+## 4. Aangifte-checklist in output
+
+De API levert standaard:
+
+1. Persoonsgegevens controleren
+2. Inkomsten invoeren
+3. Woning en hypotheek invoeren
+4. Vermogen invoeren
+5. Aftrekposten invoeren
+6. Partnerverdeling optimaliseren
+7. Controle
+8. Indienen

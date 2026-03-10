@@ -1,29 +1,63 @@
-# Nederlandse Belastingcalculator - Web GUI
+# GUI Handleiding - Procesflow Editie
 
-Webinterface voor berekening van inkomstenbelasting op basis van Box1 en Box3 (belastingjaar 2025).
+De nieuwe UI is opgezet als een compacte workflow met twee kolommen:
 
-## Wat is nieuw in de GUI
+- Links: volledige invoer volgens de processtappen
+- Rechts: live-resultaten in Box 1, Box 2, Box 3 en eindafrekening
 
-- Volledig Nederlandstalige schermteksten.
-- Invoer in 3 logische tabs:
-1. `Huishouden`
-2. `Personen`
-3. `Importeren & Berekenen`
-- Per persoon ondersteuning voor:
-- inkomstenbronnen
-- aftrekposten
-- heffingskortingen
-- eigen woning (WOZ + periode)
-- voorheffingen (loonheffing + dividendbelasting)
-- Box3-vermogen
-- Resultaten met procesflow:
-- Box1 belastbaar inkomen
-- Box3 fictief rendement
-- correctie heffingsvrij vermogen
-- verzamelinkomen
-- bruto inkomstenbelasting
-- voorheffingen + heffingskortingen
-- eindafrekening
+## Schermopbouw
+
+### 1. Invoerblok
+
+Bestaat uit drie stappen:
+
+1. `Verzamel gegevens`
+- Huishouden-ID
+- Aantal personen
+- Fiscaal partnerschap
+- Aantal kinderen
+- Box 3 verdelingsmethode
+
+2. `Persoonsdossiers`
+Per persoon:
+- Basis (naam, BSN, voorheffingen)
+- Box 1 inkomsten
+- Box 1 woning en aftrek
+- Box 1 overige kortingen
+- Box 2 aanmerkelijk belang
+- Box 3 vermogen en schulden
+- Optioneel custom Box 3 percentage
+
+3. `Controle en berekenen`
+- JSON importeren
+- Berekening starten
+
+### 2. Resultatenblok
+
+Resultaten worden opgebouwd in dezelfde volgorde als de fiscale verwerking:
+
+- KPI's: eindresultaat, effectief tarief, verzamelinkomen
+- Box 1: detail per persoon + schijven
+- Box 2: totaal belastbaar inkomen en belasting
+- Box 3: netto vermogen, heffingsvrij vermogen, correctie en toerekening
+- Verrekening: bruto belasting, heffingskortingen, voorheffingen, eindafrekening
+- Checklist: 8 stappen voor invullen aangifte
+
+## UX-principes
+
+- Elke sectie volgt direct de fiscale flow
+- Formulieren zijn gegroepeerd per box om fouten te verminderen
+- Het ontwerp werkt op desktop en mobiel
+- JSON-opslag maakt hergebruik van dossiers makkelijk
+
+## JSON laden
+
+Via "Laad JSON in formulier" kun je eerder opgeslagen payloads uit `submissions/` direct terugzetten in de UI.
+
+Ondersteund formaat:
+
+- Wrapped: `{ "saved_at": ..., "data": { ...payload... } }`
+- Direct: `{ ...payload... }`
 
 ## Starten
 
@@ -31,90 +65,4 @@ Webinterface voor berekening van inkomstenbelasting op basis van Box1 en Box3 (b
 python3 app.py
 ```
 
-Of expliciet met dezelfde interpreter als tests:
-
-```bash
-/usr/local/bin/python3.11 app.py
-```
-
-Open daarna:
-
-```text
-http://127.0.0.1:8000
-```
-
-## Procesflow in de GUI
-
-### 1. Huishouden
-
-- `Huishouden-ID`
-- `Aantal personen`
-- Box3-verdelingsmethode:
-- `Gelijk`
-- `Proportioneel (op fictief rendement)`
-- `Aangepaste percentages`
-
-### 2. Personen
-
-Per persoon:
-
-- Basis:
-- naam, BSN, fiscale woonstatus
-- Inkomsten:
-- type + bedrag
-- Aftrekposten:
-- omschrijving + bedrag
-- Heffingskortingen:
-- naam + bedrag (bijv. arbeidskorting, ouderenkorting)
-- Eigen woning:
-- aan/uit
-- WOZ-waarde
-- periode (0-1)
-- Voorheffingen:
-- ingehouden loonheffing
-- betaalde dividendbelasting
-- Vermogen (Box3):
-- type + waarde + dividendbelasting per beleggingsrekening
-
-### 3. Importeren & Berekenen
-
-- JSON-bestand kiezen en laden uit `submissions/`
-- Berekening starten
-
-## Resultatenpaneel
-
-Toont:
-
-- Box1 detail per persoon
-- Box3 detail en verdeling
-- Procesflow-overzicht:
-- Box1 belastbaar inkomen totaal
-- Box3 fictief rendement
-- toegepast heffingsvrij vermogen
-- Box3 gecorrigeerd fictief rendement
-- correctiefactor: `(gecorrigeerd_vermogen / totaal_vermogen)`
-- verzamelinkomen
-- bruto inkomstenbelasting (Box1 + Box3)
-- voorheffingen (loon + dividend)
-- heffingskortingen
-- eindafrekening
-
-Zie ook `DO_BESTAND.md` voor volledige specificatie van invoervelden, exacte formules en outputvelden.
-
-## JSON-invoer opslaan/laden
-
-- Elke `POST /api/calculate` wordt opgeslagen in:
-- `submissions/<household_id>.json`
-- In de GUI kun je deze JSON opnieuw laden via tab `Importeren & Berekenen`.
-
-## API-endpoints
-
-- `GET /`
-- `GET /api/income-types`
-- `GET /api/asset-types`
-- `GET /api/allocation-strategies`
-- `POST /api/calculate`
-
-## Opmerking
-
-Deze tool is een rekenhulp. Voor officiële aangifte en definitieve bedragen: controleer altijd bij de Belastingdienst of een fiscalist.
+Open `http://127.0.0.1:8000`.

@@ -1,712 +1,714 @@
-// Dutch Tax Calculator - Frontend JavaScript
-
 const app = {
-    // API endpoints
-    API_INCOME_TYPES: '/api/income-types',
-    API_ASSET_TYPES: '/api/asset-types',
-    API_ALLOCATION_STRATEGIES: '/api/allocation-strategies',
-    API_CALCULATE: '/api/calculate',
+    API_CALCULATE: "/api/calculate",
+    currentMemberCount: 2,
+    BOX3_SAVINGS_RATE: 0.0137,
+    BOX3_INVESTMENTS_RATE: 0.0588,
 
-    // State
-    incomeTypes: [],
-    assetTypes: [],
-    allocationStrategies: [],
-    currentMemberCount: 1,
-
-    // Initialize the app
     init() {
-        console.log('Initializing Dutch Tax Calculator app...');
         this.cacheElements();
-        this.loadTypes();
-        this.attachEventListeners();
-        this.renderMembers(1);
-        console.log('✓ App initialized');
+        this.attachEvents();
+        this.renderMembers(this.currentMemberCount);
+        this.renderCreditsPerPerson(this.currentMemberCount);
+        this.initBox3HouseholdEditors();
     },
 
-    // Cache DOM elements
     cacheElements() {
-        this.form = document.getElementById('taxForm');
-        this.memberCount = document.getElementById('memberCount');
-        this.membersContainer = document.getElementById('membersContainer');
-        this.taxForm = document.getElementById('taxForm');
-        this.resultsSection = document.getElementById('resultsSection');
-        this.emptyState = document.getElementById('emptyState');
-        this.allocationStrategy = document.getElementById('allocationStrategy');
-        this.loadingSpinner = document.getElementById('loadingSpinner');
-        this.clearBtn = document.getElementById('clearBtn');
-        this.loadJsonFile = document.getElementById('loadJsonFile');
-        this.loadJsonBtn = document.getElementById('loadJsonBtn');
+        this.form = document.getElementById("taxForm");
+        this.memberCount = document.getElementById("memberCount");
+        this.membersContainer = document.getElementById("membersContainer");
+        this.creditsContainer = document.getElementById("creditsContainer");
+        this.allocationStrategy = document.getElementById("allocationStrategy");
+        this.resultsSection = document.getElementById("resultsSection");
+        this.emptyState = document.getElementById("emptyState");
+        this.loadJsonFile = document.getElementById("loadJsonFile");
+        this.loadJsonBtn = document.getElementById("loadJsonBtn");
+
+        this.savingsList = document.getElementById("savings-list");
+        this.investmentsList = document.getElementById("investments-list");
+        this.otherAssetsList = document.getElementById("other-assets-list");
+        this.debtsList = document.getElementById("debts-list");
+        this.addSavingsBtn = document.getElementById("addSavingsBtn");
+        this.addInvestmentsBtn = document.getElementById("addInvestmentsBtn");
+        this.addOtherAssetBtn = document.getElementById("addOtherAssetBtn");
+        this.addDebtBtn = document.getElementById("addDebtBtn");
     },
 
-    // Load income and asset types from API
-    async loadTypes() {
-        try {
-            const [incomeRes, assetRes] = await Promise.all([
-                fetch(this.API_INCOME_TYPES),
-                fetch(this.API_ASSET_TYPES)
-            ]);
-
-            if (!incomeRes.ok || !assetRes.ok) {
-                throw new Error(`Income types: ${incomeRes.status}, Asset types: ${assetRes.status}`);
-            }
-
-            this.incomeTypes = (await incomeRes.json()).types;
-            this.assetTypes = (await assetRes.json()).types;
-            console.log('✓ Types loaded:', this.incomeTypes.length, 'income types,', this.assetTypes.length, 'asset types');
-        } catch (error) {
-            console.error('✗ Error loading types:', error);
-            alert('Waarschuwing: formulieropties konden niet worden geladen. Sommige functies werken mogelijk niet.');
-        }
-    },
-
-    // Attach event listeners
-    attachEventListeners() {
-        this.memberCount.addEventListener('change', (e) => {
-            this.renderMembers(parseInt(e.target.value));
+    attachEvents() {
+        this.memberCount.addEventListener("change", (event) => {
+            this.currentMemberCount = Number(event.target.value);
+            this.renderMembers(this.currentMemberCount);
+            this.renderCreditsPerPerson(this.currentMemberCount);
         });
 
-        this.taxForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.calculateTaxes();
+        this.form.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            await this.calculate();
         });
 
-        this.clearBtn.addEventListener('click', () => {
-            this.clearResults();
+        this.loadJsonBtn.addEventListener("click", () => {
+            this.loadJsonIntoForm();
         });
 
-        if (this.loadJsonBtn) {
-            this.loadJsonBtn.addEventListener('click', () => {
-                this.loadJsonIntoForm();
-            });
-        }
+        this.addSavingsBtn.addEventListener("click", () => this.addSavingsRow());
+        this.addInvestmentsBtn.addEventListener("click", () => this.addInvestmentRow());
+        this.addOtherAssetBtn.addEventListener("click", () => this.addOtherAssetRow());
+        this.addDebtBtn.addEventListener("click", () => this.addDebtRow());
     },
 
-    // Load a previously saved JSON submission into the current form.
-    async loadJsonIntoForm() {
-        if (!this.loadJsonFile || !this.loadJsonFile.files || this.loadJsonFile.files.length === 0) {
-            alert('Selecteer eerst een JSON-bestand.');
-            return;
-        }
-
-        const file = this.loadJsonFile.files[0];
-        try {
-            const text = await file.text();
-            const parsed = JSON.parse(text);
-
-            // Accept both wrapped format ({ saved_at, data }) and raw payload.
-            const payload = parsed.data ? parsed.data : parsed;
-            this.populateFormFromData(payload);
-            alert('JSON succesvol geladen in het formulier.');
-        } catch (error) {
-            console.error('✗ Error loading JSON:', error);
-            alert('Kon JSON niet laden: ' + error.message);
-        }
+    initBox3HouseholdEditors() {
+        this.savingsList.innerHTML = "";
+        this.investmentsList.innerHTML = "";
+        this.otherAssetsList.innerHTML = "";
+        this.debtsList.innerHTML = "";
+        this.addSavingsRow();
+        this.addInvestmentRow();
+        this.addOtherAssetRow();
+        this.addDebtRow();
+        this.updateBox3Subtotals();
     },
 
-    populateFormFromData(data) {
-        if (!data || !Array.isArray(data.members)) {
-            throw new Error('Ongeldig JSON-formaat: members ontbreekt.');
-        }
-
-        const householdId = data.household_id || 'WEB_001';
-        const strategy = data.allocation_strategy || 'EQUAL';
-        const members = data.members;
-
-        document.getElementById('householdId').value = householdId;
-        this.allocationStrategy.value = strategy;
-
-        const memberCount = Math.max(1, members.length);
-        this.memberCount.value = String(memberCount);
-        this.renderMembers(memberCount);
-
-        members.forEach((member, index) => {
-            const i = index + 1;
-
-            const fullNameEl = document.getElementById(`fullName-${i}`);
-            const bsnEl = document.getElementById(`bsn-${i}`);
-            const residencyEl = document.getElementById(`residency-${i}`);
-            const withheldEl = document.getElementById(`withheld-${i}`);
-            const ownHomeEnabledEl = document.getElementById(`own-home-enabled-${i}`);
-            const ownHomeWozEl = document.getElementById(`own-home-woz-${i}`);
-            const ownHomePeriodEl = document.getElementById(`own-home-period-${i}`);
-
-            if (fullNameEl) fullNameEl.value = member.full_name || '';
-            if (bsnEl) bsnEl.value = member.bsn || '';
-            if (residencyEl) residencyEl.value = member.residency_status || 'RESIDENT';
-            if (withheldEl) withheldEl.value = member.withheld_tax || 0;
-
-            const hasOwnHome = !!member.own_home;
-            if (ownHomeEnabledEl) ownHomeEnabledEl.checked = hasOwnHome;
-            if (ownHomeWozEl) ownHomeWozEl.value = hasOwnHome ? (member.own_home.woz_value || '') : '';
-            if (ownHomePeriodEl) ownHomePeriodEl.value = hasOwnHome ? (member.own_home.period_fraction || 1) : 1;
-
-            if (Array.isArray(member.incomes)) {
-                member.incomes.forEach((income) => {
-                    this.addIncome(i);
-                    const incomeRows = document.querySelectorAll(`#incomes-${i} .item-row`);
-                    const row = incomeRows[incomeRows.length - 1];
-                    row.querySelector('[data-type="income-type"]').value = income.type || 'EMPLOYMENT';
-                    row.querySelector('[data-type="income-amount"]').value = income.amount || '';
-                });
-            }
-
-            if (Array.isArray(member.deductions)) {
-                member.deductions.forEach((deduction) => {
-                    this.addDeduction(i);
-                    const deductionRows = document.querySelectorAll(`#deductions-${i} .item-row`);
-                    const row = deductionRows[deductionRows.length - 1];
-                    row.querySelector('[data-type="deduction-desc"]').value = deduction.description || '';
-                    row.querySelector('[data-type="deduction-amount"]').value = deduction.amount || '';
-                });
-            }
-
-            if (Array.isArray(member.assets)) {
-                member.assets.forEach((asset) => {
-                    this.addAsset(i);
-                    const assetRows = document.querySelectorAll(`#assets-${i} .item-row`);
-                    const row = assetRows[assetRows.length - 1];
-                    row.querySelector('[data-type="asset-type"]').value = asset.type || 'SAVINGS';
-                    row.querySelector('[data-type="asset-value"]').value = asset.value || '';
-                    row.querySelector('[data-type="asset-dividend-tax"]').value = asset.dividend_tax_paid || 0;
-                    this.toggleAssetDividendInput(row);
-                });
-            }
-
-            // Backward compatibility: older payloads stored dividend tax at member level.
-            const legacyDividendTax = member.dividend_tax_paid || 0;
-            if (legacyDividendTax > 0) {
-                const assetRows = document.querySelectorAll(`#assets-${i} .item-row`);
-                if (assetRows.length > 0) {
-                    const preferredRow = Array.from(assetRows).find((row) => {
-                        const t = row.querySelector('[data-type="asset-type"]').value;
-                        return t !== 'SAVINGS';
-                    }) || assetRows[0];
-                    preferredRow.querySelector('[data-type="asset-dividend-tax"]').value = legacyDividendTax;
-                    this.toggleAssetDividendInput(preferredRow);
-                }
-            }
-
-            if (Array.isArray(member.tax_credits)) {
-                member.tax_credits.forEach((credit) => {
-                    this.addTaxCredit(i);
-                    const creditRows = document.querySelectorAll(`#tax-credits-${i} .item-row`);
-                    const row = creditRows[creditRows.length - 1];
-                    row.querySelector('[data-type="credit-name"]').value = credit.name || '';
-                    row.querySelector('[data-type="credit-amount"]').value = credit.amount || '';
-                });
-            }
-        });
-    },
-
-    // Render member sections
     renderMembers(count) {
-        this.currentMemberCount = count;
-        this.membersContainer.innerHTML = '';
-
-        for (let i = 1; i <= count; i++) {
+        this.membersContainer.innerHTML = "";
+        for (let i = 1; i <= count; i += 1) {
             this.membersContainer.appendChild(this.createMemberCard(i));
         }
     },
 
-    // Create member card HTML
-    createMemberCard(memberNumber) {
-        const card = document.createElement('div');
-        card.className = `member-card member-${memberNumber}`;
-        card.id = `member-${memberNumber}`;
-
-        card.innerHTML = `
-            <div class="member-card-header">
-                <span class="member-card-title">👤 Persoon ${memberNumber}</span>
-                ${this.currentMemberCount > 1 ? `<button type="button" class="remove-member-btn" onclick="app.removeMember(${memberNumber})">Verwijderen</button>` : ''}
-            </div>
-
-            <!-- Basic Info -->
-            <div class="mb-3">
-                  <label for="fullName-${memberNumber}" class="form-label">Volledige naam *</label>
-                <input type="text" class="form-control" id="fullName-${memberNumber}" 
-                      placeholder="bijv. Jan Jansen" required>
-            </div>
-
-            <div class="mb-3">
-                <label for="bsn-${memberNumber}" class="form-label">BSN</label>
-                <input type="text" class="form-control" id="bsn-${memberNumber}" 
-                       placeholder="9 digits" maxlength="9">
-            </div>
-
-            <div class="mb-3">
-                <label for="residency-${memberNumber}" class="form-label">Fiscale woonstatus</label>
-                <select class="form-select" id="residency-${memberNumber}">
-                    <option value="RESIDENT" selected>Ingezetene (heffingskortingen van toepassing)</option>
-                    <option value="NON_RESIDENT">Niet-ingezetene</option>
-                </select>
-            </div>
-
-            <!-- Income Sources -->
-            <div class="subsection">
-                <label class="subsection-label">💰 Inkomstenbronnen</label>
-                <div id="incomes-${memberNumber}" class="income-list"></div>
-                <button type="button" class="add-item-btn" onclick="app.addIncome(${memberNumber})">
-                    + Inkomstenbron toevoegen
-                </button>
-            </div>
-
-            <!-- Deductions -->
-            <div class="subsection">
-                <label class="subsection-label">📝 Aftrekposten</label>
-                <div id="deductions-${memberNumber}" class="deduction-list"></div>
-                <button type="button" class="add-item-btn" onclick="app.addDeduction(${memberNumber})">
-                    + Aftrekpost toevoegen
-                </button>
-            </div>
-
-            <!-- Tax Credits -->
-            <div class="subsection">
-                <label class="subsection-label">🎯 Heffingskortingen</label>
-                <div id="tax-credits-${memberNumber}" class="tax-credit-list"></div>
-                <button type="button" class="add-item-btn" onclick="app.addTaxCredit(${memberNumber})">
-                    + Add Heffingskorting
-                </button>
-            </div>
-
-            <!-- Own Home -->
-            <div class="subsection">
-                <label class="subsection-label">🏠 Eigen Woning (Eigenwoningforfait)</label>
-                <div class="row g-2">
-                    <div class="col-12">
-                        <div class="form-check mt-1">
-                            <input class="form-check-input" type="checkbox" id="own-home-enabled-${memberNumber}">
-                            <label class="form-check-label" for="own-home-enabled-${memberNumber}">
-                                Deze persoon heeft een eigen woning
-                            </label>
-                        </div>
-                    </div>
-                    <div class="col-md-7">
-                        <input type="number" class="form-control" id="own-home-woz-${memberNumber}" placeholder="WOZ-waarde (€)" min="0" step="0.01">
-                    </div>
-                    <div class="col-md-5">
-                        <input type="number" class="form-control" id="own-home-period-${memberNumber}" placeholder="Periode (0-1)" min="0" max="1" step="0.01" value="1">
-                    </div>
+    renderCreditsPerPerson(count) {
+        this.creditsContainer.innerHTML = "";
+        for (let i = 1; i <= count; i += 1) {
+            const node = document.createElement("article");
+            node.className = "member-card";
+            node.id = `credits-member-${i}`;
+            node.innerHTML = `
+                <header><h4>Persoon ${i} - Heffingskortingen</h4></header>
+                <div class="editor-header simple-header">
+                    <span>Naam</span>
+                    <span>Bedrag</span>
+                    <span>Actie</span>
                 </div>
+                <div id="credits-list-${i}"></div>
+                <button type="button" class="btn ghost" onclick="app.addCreditRow(${i})">+ Heffingskorting</button>
+            `;
+            this.creditsContainer.appendChild(node);
+            this.addCreditRow(i);
+        }
+    },
+
+    createMemberCard(index) {
+        const node = document.createElement("article");
+        node.className = "member-card";
+        node.id = `member-${index}`;
+        node.innerHTML = `
+            <header>
+                <h4>Persoon ${index}</h4>
+                <label class="inline-toggle">Custom Box3 %
+                    <input type="number" min="0" max="100" step="0.1" id="custom-allocation-${index}" value="0">
+                </label>
+            </header>
+
+            <div class="grid two">
+                <label>Naam
+                    <input type="text" id="full-name-${index}" value="Persoon ${index}">
+                </label>
+                <label>BSN
+                    <input type="text" id="bsn-${index}" value="00000000${index}">
+                </label>
             </div>
 
-            <!-- Prepaid Taxes -->
-            <div class="subsection">
-                <label for="withheld-${memberNumber}" class="form-label">Ingehouden Loonheffing (€)</label>
-                <input type="number" class="form-control" id="withheld-${memberNumber}" placeholder="0.00" min="0" step="0.01" value="0">
-                <small class="text-muted d-block mt-2">Dividendbelasting vul je per beleggingsrekening in bij Vermogen (Box3).</small>
-            </div>
+            <section class="subblock">
+                <h5>Box 1 - Inkomsten (1-4)</h5>
+                <div class="editor-header income-header">
+                    <span>Soort</span>
+                    <span>Instantie/bedrijf/werkgever</span>
+                    <span>Bedrag</span>
+                    <span>Loonheffing</span>
+                    <span>Actie</span>
+                </div>
+                <div id="incomes-list-${index}"></div>
+                <button type="button" class="btn ghost" onclick="app.addIncomeRow(${index})">+ Inkomensregel</button>
+            </section>
 
-            <!-- Assets -->
-            <div class="subsection">
-                <label class="subsection-label">🏦 Vermogen (Box3)</label>
-                <div id="assets-${memberNumber}" class="asset-list"></div>
-                <button type="button" class="add-item-btn" onclick="app.addAsset(${memberNumber})">
-                    + Vermogen toevoegen
-                </button>
-            </div>
+            <section class="subblock">
+                <h5>Woninggerelateerde berekening (5-7)</h5>
+                <div class="grid two">
+                    <label class="inline-toggle">Eigen woning aanwezig
+                        <input type="checkbox" id="has-own-home-${index}">
+                    </label>
+                    <label>WOZ-waarde
+                        <input type="number" min="0" step="0.01" id="woz-${index}" value="0">
+                    </label>
+                    <label>Periode (0-1)
+                        <input type="number" min="0" max="1" step="0.01" id="period-${index}" value="1">
+                    </label>
+                </div>
+            </section>
+
+            <section class="subblock">
+                <h5>Persoonsgebonden aftrekposten (8-13)</h5>
+                <div class="editor-header simple-header">
+                    <span>Omschrijving</span>
+                    <span>Bedrag</span>
+                    <span>Actie</span>
+                </div>
+                <div id="deductions-list-${index}"></div>
+                <button type="button" class="btn ghost" onclick="app.addDeductionRow(${index})">+ Persoonsgebonden aftrekpost</button>
+            </section>
+
+            <section class="subblock">
+                <h5>Box 2 - Aanmerkelijk belang</h5>
+                <div class="grid two">
+                    <label class="inline-toggle">5% of meer belang in BV
+                        <input type="checkbox" id="has-ab-${index}">
+                    </label>
+                    <label>Dividend
+                        <input type="number" min="0" step="0.01" id="box2-dividend-${index}" value="0">
+                    </label>
+                    <label>Verkoopopbrengst/winst aandelen
+                        <input type="number" min="0" step="0.01" id="box2-sale-${index}" value="0">
+                    </label>
+                    <label>Verkrijgingsprijs
+                        <input type="number" min="0" step="0.01" id="box2-acquisition-${index}" value="0">
+                    </label>
+                </div>
+            </section>
         `;
-
-        return card;
+        setTimeout(() => {
+            this.addIncomeRow(index);
+            this.addDeductionRow(index);
+        }, 0);
+        return node;
     },
 
-    // Add income source input
-    addIncome(memberNumber) {
-        const incomeList = document.getElementById(`incomes-${memberNumber}`);
-        const id = `income-${memberNumber}-${Date.now()}`;
-
-        const row = document.createElement('div');
-        row.className = 'item-row two-col';
-        row.id = id;
-
-        let optionsHtml = this.incomeTypes.map(type => 
-            `<option value="${type.id}">${type.label}</option>`
-        ).join('');
-
-        row.innerHTML = `
-            <select class="form-select" data-type="income-type">
-                ${optionsHtml}
-            </select>
-            <input type="number" class="form-control" placeholder="Bedrag (€)" min="0" step="0.01" data-type="income-amount" required>
-            <button type="button" class="remove-item-btn" onclick="app.removeItem('${id}')">Verwijderen</button>
-        `;
-
-        incomeList.appendChild(row);
+    makeRowId(prefix) {
+        return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 9999)}`;
     },
 
-    // Add deduction input
-    addDeduction(memberNumber) {
-        const deductionList = document.getElementById(`deductions-${memberNumber}`);
-        const id = `deduction-${memberNumber}-${Date.now()}`;
-
-        const row = document.createElement('div');
-        row.className = 'item-row two-col';
-        row.id = id;
-
-        row.innerHTML = `
-            <input type="text" class="form-control" placeholder="Omschrijving" data-type="deduction-desc" required>
-            <input type="number" class="form-control" placeholder="Bedrag (€)" min="0" step="0.01" data-type="deduction-amount" required>
-            <button type="button" class="remove-item-btn" onclick="app.removeItem('${id}')">Verwijderen</button>
+    addSavingsRow(name = "", amount = 0, isGreen = false) {
+        const rowId = this.makeRowId("savings-row");
+        const node = document.createElement("div");
+        node.className = "editor-row account-row-green";
+        node.id = rowId;
+        node.innerHTML = `
+            <label>Spaarrekening
+                <input type="text" data-kind="name" value="${name}">
+            </label>
+            <label>Saldo
+                <input type="number" min="0" step="0.01" data-kind="amount" value="${amount}">
+            </label>
+            <label class="inline-toggle">Groen sparen
+                <input type="checkbox" data-kind="is-green" ${isGreen ? "checked" : ""}>
+            </label>
+            <button type="button" class="btn ghost row-remove" onclick="app.removeRow('${rowId}')">Verwijder</button>
         `;
-
-        deductionList.appendChild(row);
+        this.savingsList.appendChild(node);
+        this.attachBox3RowListeners(node);
     },
 
-    // Add tax credit input
-    addTaxCredit(memberNumber) {
-        const creditList = document.getElementById(`tax-credits-${memberNumber}`);
-        const id = `tax-credit-${memberNumber}-${Date.now()}`;
-
-        const row = document.createElement('div');
-        row.className = 'item-row two-col';
-        row.id = id;
-
-        row.innerHTML = `
-            <input type="text" class="form-control" placeholder="Naam (bijv. Arbeidskorting)" data-type="credit-name" required>
-            <input type="number" class="form-control" placeholder="Bedrag (€)" min="0" step="0.01" data-type="credit-amount" required>
-            <button type="button" class="remove-item-btn" onclick="app.removeItem('${id}')">Verwijderen</button>
+    addInvestmentRow(name = "", amount = 0, isGreen = false, dividendWithholding = 0) {
+        const rowId = this.makeRowId("invest-row");
+        const node = document.createElement("div");
+        node.className = "editor-row account-row-green";
+        node.id = rowId;
+        node.innerHTML = `
+            <label>Beleggingsrekening
+                <input type="text" data-kind="name" value="${name}">
+            </label>
+            <label>Waarde
+                <input type="number" min="0" step="0.01" data-kind="amount" value="${amount}">
+            </label>
+            <label class="inline-toggle">Groene belegging
+                <input type="checkbox" data-kind="is-green" ${isGreen ? "checked" : ""}>
+            </label>
+            <button type="button" class="btn ghost row-remove" onclick="app.removeRow('${rowId}')">Verwijder</button>
+            <label>Dividendbelasting
+                <input type="number" min="0" step="0.01" data-kind="dividend-withholding" value="${dividendWithholding}">
+            </label>
         `;
-
-        creditList.appendChild(row);
+        this.investmentsList.appendChild(node);
+        this.attachBox3RowListeners(node);
     },
 
-    // Add asset input
-    addAsset(memberNumber) {
-        const assetList = document.getElementById(`assets-${memberNumber}`);
-        const id = `asset-${memberNumber}-${Date.now()}`;
-
-        const row = document.createElement('div');
-        row.className = 'item-row two-col';
-        row.id = id;
-
-        let optionsHtml = this.assetTypes.map(type => 
-            `<option value="${type.id}">${type.label}</option>`
-        ).join('');
-
-        row.innerHTML = `
-            <select class="form-select" data-type="asset-type">
-                ${optionsHtml}
-            </select>
-            <input type="number" class="form-control" placeholder="Waarde (€)" min="0" step="0.01" data-type="asset-value" required>
-            <input type="number" class="form-control" placeholder="Dividendbelasting (€; alleen beleggingen)" min="0" step="0.01" data-type="asset-dividend-tax" value="0">
-            <button type="button" class="remove-item-btn" onclick="app.removeItem('${id}')">Verwijderen</button>
+    addOtherAssetRow(name = "", amount = 0) {
+        const rowId = this.makeRowId("other-asset-row");
+        const node = document.createElement("div");
+        node.className = "editor-row simple-row";
+        node.id = rowId;
+        node.innerHTML = `
+            <label>Omschrijving
+                <input type="text" data-kind="name" value="${name}">
+            </label>
+            <label>Bedrag
+                <input type="number" min="0" step="0.01" data-kind="amount" value="${amount}">
+            </label>
+            <button type="button" class="btn ghost row-remove" onclick="app.removeRow('${rowId}')">Verwijder</button>
         `;
+        this.otherAssetsList.appendChild(node);
+        this.attachBox3RowListeners(node);
+    },
 
-        assetList.appendChild(row);
+    addDebtRow(name = "", amount = 0) {
+        const rowId = this.makeRowId("debt-row");
+        const node = document.createElement("div");
+        node.className = "editor-row simple-row";
+        node.id = rowId;
+        node.innerHTML = `
+            <label>Omschrijving
+                <input type="text" data-kind="name" value="${name}">
+            </label>
+            <label>Bedrag
+                <input type="number" min="0" step="0.01" data-kind="amount" value="${amount}">
+            </label>
+            <button type="button" class="btn ghost row-remove" onclick="app.removeRow('${rowId}')">Verwijder</button>
+        `;
+        this.debtsList.appendChild(node);
+        this.attachBox3RowListeners(node);
+    },
 
-        const typeSelect = row.querySelector('[data-type="asset-type"]');
-        typeSelect.addEventListener('change', () => {
-            this.toggleAssetDividendInput(row);
+    attachBox3RowListeners(node) {
+        node.querySelectorAll("input").forEach((input) => {
+            input.addEventListener("input", () => this.updateBox3Subtotals());
+            input.addEventListener("change", () => this.updateBox3Subtotals());
         });
-        this.toggleAssetDividendInput(row);
+        this.updateBox3Subtotals();
     },
 
-    toggleAssetDividendInput(row) {
-        const type = row.querySelector('[data-type="asset-type"]').value;
-        const dividendInput = row.querySelector('[data-type="asset-dividend-tax"]');
-        const isSavings = type === 'SAVINGS';
-        dividendInput.disabled = isSavings;
-        if (isSavings) {
-            dividendInput.value = 0;
+    updateBox3Subtotals() {
+        const sumBySelector = (selector, amountKind = "amount") => {
+            const rows = document.querySelectorAll(selector);
+            let sum = 0;
+            rows.forEach((row) => {
+                sum += Number(row.querySelector(`[data-kind='${amountKind}']`)?.value || 0);
+            });
+            return sum;
+        };
+
+        const savings = sumBySelector("#savings-list > div");
+        const investments = sumBySelector("#investments-list > div");
+        const otherAssets = sumBySelector("#other-assets-list > div");
+        const debts = sumBySelector("#debts-list > div");
+
+        document.getElementById("subtotalSavings").textContent = this.currency(savings);
+        document.getElementById("subtotalInvestments").textContent = this.currency(investments);
+        document.getElementById("subtotalOtherAssets").textContent = this.currency(otherAssets);
+        document.getElementById("subtotalDebts").textContent = this.currency(debts);
+
+        document.getElementById("deemedSavings").textContent = this.currency(savings * this.BOX3_SAVINGS_RATE);
+        document.getElementById("deemedInvestments").textContent = this.currency(investments * this.BOX3_INVESTMENTS_RATE);
+    },
+
+    addIncomeRow(index, type = "EMPLOYMENT", source = "", amount = 0, wageWithholding = 0) {
+        const container = document.getElementById(`incomes-list-${index}`);
+        const rowId = this.makeRowId(`income-row-${index}`);
+        const node = document.createElement("div");
+        node.className = "editor-row income-row";
+        node.id = rowId;
+        node.innerHTML = `
+            <label>Soort inkomen
+                <select data-kind="income-type">
+                    <option value="EMPLOYMENT" ${type === "EMPLOYMENT" ? "selected" : ""}>Loon</option>
+                    <option value="SELF_EMPLOYMENT" ${type === "SELF_EMPLOYMENT" ? "selected" : ""}>Winst onderneming</option>
+                    <option value="BENEFITS" ${type === "BENEFITS" ? "selected" : ""}>Uitkeringen</option>
+                    <option value="PENSION" ${type === "PENSION" ? "selected" : ""}>Pensioen</option>
+                </select>
+            </label>
+            <label>Instantie/bedrijf/werkgever
+                <input type="text" data-kind="income-source" value="${source}">
+            </label>
+            <label>Bedrag
+                <input type="number" min="0" step="0.01" data-kind="income-amount" value="${amount}">
+            </label>
+            <label>Loonheffing
+                <input type="number" min="0" step="0.01" data-kind="income-withholding" value="${wageWithholding}">
+            </label>
+            <button type="button" class="btn ghost row-remove" onclick="app.removeRow('${rowId}')">Verwijder</button>
+        `;
+        container.appendChild(node);
+    },
+
+    addDeductionRow(index, name = "", amount = 0) {
+        const container = document.getElementById(`deductions-list-${index}`);
+        const rowId = this.makeRowId(`deduction-row-${index}`);
+        const node = document.createElement("div");
+        node.className = "editor-row simple-row";
+        node.id = rowId;
+        node.innerHTML = `
+            <label>Omschrijving aftrekpost
+                <input type="text" data-kind="deduction-name" value="${name}">
+            </label>
+            <label>Bedrag
+                <input type="number" min="0" step="0.01" data-kind="deduction-amount" value="${amount}">
+            </label>
+            <button type="button" class="btn ghost row-remove" onclick="app.removeRow('${rowId}')">Verwijder</button>
+        `;
+        container.appendChild(node);
+    },
+
+    addCreditRow(index, name = "", amount = 0) {
+        const container = document.getElementById(`credits-list-${index}`);
+        const rowId = this.makeRowId(`credit-row-${index}`);
+        const node = document.createElement("div");
+        node.className = "editor-row simple-row";
+        node.id = rowId;
+        node.innerHTML = `
+            <label>Naam heffingskorting
+                <input type="text" data-kind="credit-name" value="${name}">
+            </label>
+            <label>Bedrag
+                <input type="number" min="0" step="0.01" data-kind="credit-amount" value="${amount}">
+            </label>
+            <button type="button" class="btn ghost row-remove" onclick="app.removeRow('${rowId}')">Verwijder</button>
+        `;
+        container.appendChild(node);
+    },
+
+    removeRow(id) {
+        const row = document.getElementById(id);
+        if (row) {
+            row.remove();
+            this.updateBox3Subtotals();
         }
     },
 
-    // Remove item from list
-    removeItem(id) {
-        document.getElementById(id).remove();
+    readNumber(id) {
+        const value = document.getElementById(id)?.value;
+        return Number(value || 0);
     },
 
-    // Remove member
-    removeMember(memberNumber) {
-        document.getElementById(`member-${memberNumber}`).remove();
-        this.memberCount.value = this.currentMemberCount - 1;
-        this.currentMemberCount--;
-    },
+    collectBox3Household() {
+        const collect = (selector) => {
+            const rows = document.querySelectorAll(selector);
+            return Array.from(rows);
+        };
 
-    // Collect form data
-    collectFormData() {
-        const householdId = document.getElementById('householdId').value || 'WEB_001';
-        const allocationStrategy = document.getElementById('allocationStrategy').value;
-        const members = [];
+        const savingsAccounts = collect("#savings-list > div").map((row) => ({
+            name: row.querySelector("[data-kind='name']")?.value || "Spaarrekening",
+            amount: Number(row.querySelector("[data-kind='amount']")?.value || 0),
+            is_green: Boolean(row.querySelector("[data-kind='is-green']")?.checked),
+        })).filter((x) => x.name || x.amount > 0);
 
-        for (let i = 1; i <= this.currentMemberCount; i++) {
-            const memberCard = document.getElementById(`member-${i}`);
-            if (!memberCard) continue;
+        const investmentAccounts = collect("#investments-list > div").map((row) => ({
+            name: row.querySelector("[data-kind='name']")?.value || "Beleggingsrekening",
+            amount: Number(row.querySelector("[data-kind='amount']")?.value || 0),
+            is_green: Boolean(row.querySelector("[data-kind='is-green']")?.checked),
+            dividend_withholding: Number(row.querySelector("[data-kind='dividend-withholding']")?.value || 0),
+        })).filter((x) => x.name || x.amount > 0 || x.dividend_withholding > 0);
 
-            const member = {
-                full_name: document.getElementById(`fullName-${i}`).value,
-                bsn: document.getElementById(`bsn-${i}`).value || '',
-                residency_status: document.getElementById(`residency-${i}`).value,
-                incomes: [],
-                deductions: [],
-                withheld_tax: parseFloat(document.getElementById(`withheld-${i}`).value) || 0,
-                tax_credits: [],
-                assets: []
-            };
+        const otherAssets = collect("#other-assets-list > div").map((row) => ({
+            name: row.querySelector("[data-kind='name']")?.value || "Overige bezitting",
+            amount: Number(row.querySelector("[data-kind='amount']")?.value || 0),
+        })).filter((x) => x.name || x.amount > 0);
 
-            const ownHomeEnabled = document.getElementById(`own-home-enabled-${i}`).checked;
-            const ownHomeWoz = parseFloat(document.getElementById(`own-home-woz-${i}`).value);
-            const ownHomePeriod = parseFloat(document.getElementById(`own-home-period-${i}`).value);
-            if (ownHomeEnabled && !Number.isNaN(ownHomeWoz) && ownHomeWoz > 0) {
-                member.own_home = {
-                    woz_value: ownHomeWoz,
-                    period_fraction: Number.isNaN(ownHomePeriod) ? 1 : ownHomePeriod
-                };
-            }
+        const debts = collect("#debts-list > div").map((row) => ({
+            name: row.querySelector("[data-kind='name']")?.value || "Schuld",
+            amount: Number(row.querySelector("[data-kind='amount']")?.value || 0),
+        })).filter((x) => x.name || x.amount > 0);
 
-            // Collect incomes
-            const incomeRows = memberCard.querySelectorAll('#incomes-' + i + ' .item-row');
-            incomeRows.forEach(row => {
-                const type = row.querySelector('[data-type="income-type"]').value;
-                const amount = row.querySelector('[data-type="income-amount"]').value;
-                if (amount) {
-                    member.incomes.push({
-                        type: type,
-                        amount: parseFloat(amount),
-                        description: type
-                    });
-                }
-            });
-
-            // Collect deductions
-            const deductionRows = memberCard.querySelectorAll('#deductions-' + i + ' .item-row');
-            deductionRows.forEach(row => {
-                const desc = row.querySelector('[data-type="deduction-desc"]').value;
-                const amount = row.querySelector('[data-type="deduction-amount"]').value;
-                if (desc && amount) {
-                    member.deductions.push({
-                        description: desc,
-                        amount: parseFloat(amount)
-                    });
-                }
-            });
-
-            // Collect assets
-            const assetRows = memberCard.querySelectorAll('#assets-' + i + ' .item-row');
-            assetRows.forEach(row => {
-                const type = row.querySelector('[data-type="asset-type"]').value;
-                const value = row.querySelector('[data-type="asset-value"]').value;
-                const dividendTax = row.querySelector('[data-type="asset-dividend-tax"]').value;
-                const normalizedDividendTax = type === 'SAVINGS' ? 0 : (parseFloat(dividendTax) || 0);
-                if (value) {
-                    member.assets.push({
-                        type: type,
-                        value: parseFloat(value),
-                        dividend_tax_paid: normalizedDividendTax,
-                        description: type
-                    });
-                }
-            });
-
-            // Collect tax credits/heffingskortingen
-            const creditRows = memberCard.querySelectorAll('#tax-credits-' + i + ' .item-row');
-            creditRows.forEach(row => {
-                const name = row.querySelector('[data-type="credit-name"]').value;
-                const amount = row.querySelector('[data-type="credit-amount"]').value;
-                if (name && amount) {
-                    member.tax_credits.push({
-                        name: name,
-                        amount: parseFloat(amount)
-                    });
-                }
-            });
-
-            members.push(member);
-        }
+        const totalSavings = savingsAccounts.reduce((sum, item) => sum + item.amount, 0);
+        const totalInvestments = investmentAccounts.reduce((sum, item) => sum + item.amount, 0);
+        const totalOtherAssets = otherAssets.reduce((sum, item) => sum + item.amount, 0);
+        const totalDebts = debts.reduce((sum, item) => sum + item.amount, 0);
+        const totalDividendWithholding = investmentAccounts.reduce((sum, item) => sum + item.dividend_withholding, 0);
 
         return {
-            household_id: householdId,
-            allocation_strategy: allocationStrategy,
-            members: members
+            savings_accounts: savingsAccounts,
+            investment_accounts: investmentAccounts,
+            other_assets_items: otherAssets,
+            debt_items: debts,
+            savings: totalSavings,
+            investments: totalInvestments,
+            other_assets: totalOtherAssets,
+            debts: totalDebts,
+            total_dividend_withholding: totalDividendWithholding,
         };
     },
 
-    // Calculate taxes
-    async calculateTaxes() {
-        try {
-            this.loadingSpinner.classList.remove('d-none');
+    collectPayload() {
+        const members = [];
+        const customAllocation = {};
 
-            const data = this.collectFormData();
+        for (let i = 1; i <= this.currentMemberCount; i += 1) {
+            const bsn = document.getElementById(`bsn-${i}`).value || `member_${i}`;
+            const memberId = bsn;
 
-            if (data.members.length === 0) {
-                alert('Voeg minimaal een persoon met inkomsten toe.');
-                this.loadingSpinner.classList.add('d-none');
-                return;
+            const incomes = [];
+            let wageWithholdingTotal = 0;
+            const incomeRows = document.querySelectorAll(`#incomes-list-${i} > div`);
+            incomeRows.forEach((row) => {
+                const type = row.querySelector("[data-kind='income-type']")?.value || "EMPLOYMENT";
+                const source = row.querySelector("[data-kind='income-source']")?.value || "";
+                const amount = Number(row.querySelector("[data-kind='income-amount']")?.value || 0);
+                const wageWithholding = Number(row.querySelector("[data-kind='income-withholding']")?.value || 0);
+                if (amount > 0) {
+                    incomes.push({ type, amount, source, description: source || type });
+                    wageWithholdingTotal += wageWithholding;
+                }
+            });
+
+            const deductions = [];
+            const deductionRows = document.querySelectorAll(`#deductions-list-${i} > div`);
+            deductionRows.forEach((row) => {
+                const name = row.querySelector("[data-kind='deduction-name']")?.value || "";
+                const amount = Number(row.querySelector("[data-kind='deduction-amount']")?.value || 0);
+                if (name && amount > 0) {
+                    deductions.push({ type: "PERSONAL_ALLOWANCE", name, amount });
+                }
+            });
+
+            const taxCredits = [];
+            const creditRows = document.querySelectorAll(`#credits-list-${i} > div`);
+            creditRows.forEach((row) => {
+                const name = row.querySelector("[data-kind='credit-name']")?.value || "";
+                const amount = Number(row.querySelector("[data-kind='credit-amount']")?.value || 0);
+                if (name && amount > 0) {
+                    taxCredits.push({ name, amount });
+                }
+            });
+
+            const customPercent = this.readNumber(`custom-allocation-${i}`);
+            if (customPercent > 0) {
+                customAllocation[memberId] = customPercent;
             }
 
-            console.log('Sending calculation request:', data);
-
-            const response = await fetch(this.API_CALCULATE, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
+            members.push({
+                member_id: memberId,
+                full_name: document.getElementById(`full-name-${i}`).value || `Persoon ${i}`,
+                bsn,
+                wage_withholding: wageWithholdingTotal,
+                box1: {
+                    incomes,
+                    deductions,
+                    own_home: {
+                        has_own_home: document.getElementById(`has-own-home-${i}`).checked,
+                        woz_value: this.readNumber(`woz-${i}`),
+                        period_fraction: this.readNumber(`period-${i}`),
+                    },
+                    tax_credits: taxCredits,
                 },
-                body: JSON.stringify(data)
+                box2: {
+                    has_substantial_interest: document.getElementById(`has-ab-${i}`).checked,
+                    dividend_income: this.readNumber(`box2-dividend-${i}`),
+                    sale_gain: this.readNumber(`box2-sale-${i}`),
+                    acquisition_price: this.readNumber(`box2-acquisition-${i}`),
+                },
+            });
+        }
+
+        const box3Household = this.collectBox3Household();
+
+        return {
+            household_id: document.getElementById("householdId").value || "WEB_001",
+            fiscal_partner: document.getElementById("fiscalPartner").checked,
+            children_count: this.readNumber("childrenCount"),
+            allocation_strategy: this.allocationStrategy.value,
+            custom_allocation: customAllocation,
+            dividend_withholding_total: box3Household.total_dividend_withholding,
+            box3_household: box3Household,
+            members,
+        };
+    },
+
+    async calculate() {
+        const payload = this.collectPayload();
+        const response = await fetch(this.API_CALCULATE, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+
+        const result = await response.json();
+        if (!response.ok || result.error) {
+            alert(result.error || "Berekening mislukt");
+            return;
+        }
+
+        this.renderResults(result);
+    },
+
+    loadJsonIntoForm() {
+        if (!this.loadJsonFile.files || this.loadJsonFile.files.length === 0) {
+            alert("Selecteer eerst een JSON-bestand.");
+            return;
+        }
+
+        const file = this.loadJsonFile.files[0];
+        file.text().then((raw) => {
+            const parsed = JSON.parse(raw);
+            const payload = parsed.data || parsed;
+            const members = payload.members || [];
+
+            document.getElementById("householdId").value = payload.household_id || "WEB_001";
+            document.getElementById("fiscalPartner").checked = Boolean(payload.fiscal_partner);
+            document.getElementById("childrenCount").value = payload.children_count || 0;
+            document.getElementById("allocationStrategy").value = payload.allocation_strategy || "PROPORTIONAL";
+
+            this.currentMemberCount = Math.max(1, members.length || 1);
+            this.memberCount.value = String(this.currentMemberCount);
+            this.renderMembers(this.currentMemberCount);
+            this.renderCreditsPerPerson(this.currentMemberCount);
+
+            members.forEach((member, idx) => {
+                const i = idx + 1;
+                document.getElementById(`full-name-${i}`).value = member.full_name || "";
+                document.getElementById(`bsn-${i}`).value = member.bsn || "";
+
+                const box1 = member.box1 || {};
+                const incomes = box1.incomes || [];
+                const incomeContainer = document.getElementById(`incomes-list-${i}`);
+                incomeContainer.innerHTML = "";
+                if (incomes.length === 0) {
+                    this.addIncomeRow(i);
+                } else {
+                    const totalWithholding = Number(member.wage_withholding || 0);
+                    const defaultPerRow = incomes.length > 0 ? totalWithholding / incomes.length : 0;
+                    incomes.forEach((income) => {
+                        this.addIncomeRow(
+                            i,
+                            income.type || "EMPLOYMENT",
+                            income.source || income.description || "",
+                            income.amount || 0,
+                            defaultPerRow
+                        );
+                    });
+                }
+
+                const deductions = box1.deductions || [];
+                const deductionContainer = document.getElementById(`deductions-list-${i}`);
+                deductionContainer.innerHTML = "";
+                if (deductions.length === 0) {
+                    this.addDeductionRow(i);
+                } else {
+                    deductions.forEach((deduction) => {
+                        this.addDeductionRow(i, deduction.name || deduction.type || "Aftrekpost", deduction.amount || 0);
+                    });
+                }
+
+                const ownHome = box1.own_home || {};
+                document.getElementById(`has-own-home-${i}`).checked = Boolean(ownHome.has_own_home);
+                document.getElementById(`woz-${i}`).value = ownHome.woz_value || 0;
+                document.getElementById(`period-${i}`).value = ownHome.period_fraction || 1;
+
+                const creditsContainer = document.getElementById(`credits-list-${i}`);
+                creditsContainer.innerHTML = "";
+                const credits = box1.tax_credits || [];
+                if (credits.length === 0) {
+                    this.addCreditRow(i);
+                } else {
+                    credits.forEach((credit) => {
+                        this.addCreditRow(i, credit.name || "Heffingskorting", credit.amount || 0);
+                    });
+                }
+
+                const box2 = member.box2 || {};
+                document.getElementById(`has-ab-${i}`).checked = Boolean(box2.has_substantial_interest);
+                document.getElementById(`box2-dividend-${i}`).value = box2.dividend_income || 0;
+                document.getElementById(`box2-sale-${i}`).value = box2.sale_gain || 0;
+                document.getElementById(`box2-acquisition-${i}`).value = box2.acquisition_price || 0;
+
+                const customPct = payload.custom_allocation?.[member.member_id || member.bsn];
+                document.getElementById(`custom-allocation-${i}`).value = customPct || 0;
             });
 
-            console.log('Response status:', response.status);
-
-            const result = await response.json();
-
-            console.log('Calculation result:', result);
-
-            if (result.error) {
-                console.error('API Error:', result.error);
-                alert('Fout: ' + result.error);
-            } else if (result.success) {
-                console.log('✓ Calculation successful');
-                this.displayResults(result);
-            } else {
-                console.error('Unexpected response:', result);
-                alert('De berekening gaf geen verwacht antwoordformaat terug.');
+            const box3 = payload.box3_household || {};
+            this.savingsList.innerHTML = "";
+            (box3.savings_accounts || []).forEach((row) => this.addSavingsRow(row.name || "", row.amount || 0, !!row.is_green));
+            if ((box3.savings_accounts || []).length === 0) {
+                this.addSavingsRow("", box3.savings || 0, false);
             }
-        } catch (error) {
-            console.error('✗ Error calculating taxes:', error);
-            alert('Fout bij belastingberekening: ' + error.message);
-        } finally {
-            this.loadingSpinner.classList.add('d-none');
-        }
+
+            this.investmentsList.innerHTML = "";
+            (box3.investment_accounts || []).forEach((row) => this.addInvestmentRow(row.name || "", row.amount || row.value || 0, !!row.is_green, row.dividend_withholding || 0));
+            if ((box3.investment_accounts || []).length === 0) {
+                this.addInvestmentRow("", box3.investments || 0, false, payload.dividend_withholding_total || 0);
+            }
+
+            this.otherAssetsList.innerHTML = "";
+            (box3.other_assets_items || []).forEach((row) => this.addOtherAssetRow(row.name || "", row.amount || 0));
+            if ((box3.other_assets_items || []).length === 0) {
+                this.addOtherAssetRow("", box3.other_assets || 0);
+            }
+
+            this.debtsList.innerHTML = "";
+            (box3.debt_items || []).forEach((row) => this.addDebtRow(row.name || "", row.amount || 0));
+            if ((box3.debt_items || []).length === 0) {
+                this.addDebtRow("", box3.debts || 0);
+            }
+
+            this.updateBox3Subtotals();
+        }).catch((error) => {
+            alert(`Kon JSON niet laden: ${error.message}`);
+        });
     },
 
-    // Display results
-    displayResults(result) {
-        console.log('Displaying results:', result);
-        
-        // Show results, hide empty state
-        this.resultsSection.style.display = 'block';
-        this.emptyState.style.display = 'none';
+    renderResults(result) {
+        this.resultsSection.classList.remove("hidden");
+        this.emptyState.classList.add("hidden");
 
-        // Update summary cards
-        document.getElementById('totalTaxAmount').textContent = this.formatCurrency(result.net_settlement);
-        document.getElementById('effectiveRateAmount').textContent = result.effective_tax_rate.toFixed(2) + '%';
+        const settlement = result.settlement;
+        const box1 = result.box1;
+        const box2 = result.box2;
+        const box3 = result.box3;
 
-        // Update Box1
-        let box1Html = '';
-        for (const [name, details] of Object.entries(result.box1_breakdown)) {
-            box1Html += `
-                <div class="member-detail">
-                    <div class="member-detail-name">${name}</div>
-                    <div class="member-detail-row">
-                        <span class="member-detail-label">Bruto inkomen:</span>
-                        <span class="member-detail-value">${this.formatCurrency(details.gross_income)}</span>
-                    </div>
-                    <div class="member-detail-row">
-                        <span class="member-detail-label">Aftrekposten:</span>
-                        <span class="member-detail-value">${this.formatCurrency(details.deductions)}</span>
-                    </div>
-                    <div class="member-detail-row">
-                        <span class="member-detail-label">Belastbaar inkomen:</span>
-                        <span class="member-detail-value">${this.formatCurrency(details.taxable_income)}</span>
-                    </div>
-                    <div class="member-detail-row">
-                        <span class="member-detail-label">Box1 belasting:</span>
-                        <span class="member-detail-value">${this.formatCurrency(details.box1_tax)}</span>
-                    </div>
-                    <div class="member-detail-row">
-                        <span class="member-detail-label">Ingehouden loonheffing:</span>
-                        <span class="member-detail-value">${this.formatCurrency(details.withheld_tax)}</span>
-                    </div>
-                    <div class="member-detail-row">
-                        <span class="member-detail-label">Betaalde dividendbelasting (totaal rekeningen):</span>
-                        <span class="member-detail-value">${this.formatCurrency(details.dividend_tax_paid || 0)}</span>
-                    </div>
-                    <div class="member-detail-row">
-                        <span class="member-detail-label">Voorheffingen totaal:</span>
-                        <span class="member-detail-value">${this.formatCurrency(details.prepaid_taxes || 0)}</span>
-                    </div>
-                    <div class="member-detail-row">
-                        <span class="member-detail-label">Heffingskortingen:</span>
-                        <span class="member-detail-value">${this.formatCurrency(details.tax_credits)}</span>
-                    </div>
-                    <div class="member-detail-row">
-                        <span class="member-detail-label"><strong>Netto last:</strong></span>
-                        <span class="member-detail-value"><strong>${this.formatCurrency(details.net_liability)}</strong></span>
-                    </div>
-                </div>
+        document.getElementById("kpiSettlement").textContent = this.currency(settlement.net_settlement);
+        document.getElementById("kpiSettlementType").textContent = settlement.result_type;
+        document.getElementById("kpiRate").textContent = `${settlement.effective_rate.toFixed(2)}%`;
+        document.getElementById("kpiVerzamel").textContent = this.currency(result.verzamelinkomen);
+
+        document.getElementById("box1Total").textContent = this.currency(box1.total_tax);
+
+        const box1Members = result.members.map((member) => {
+            const brackets = member.box1.brackets.map((row) => {
+                return `<li>${row.description}: ${this.currency(row.tax_amount)} over ${this.currency(row.taxable_amount)}</li>`;
+            }).join("");
+
+            return `
+                <article class="member-result">
+                    <h4>${member.full_name}</h4>
+                    <div class="totals-row"><span>Belastbaar inkomen Box 1</span><strong>${this.currency(member.box1.taxable_income)}</strong></div>
+                    <div class="totals-row"><span>Belasting Box 1</span><strong>${this.currency(member.box1.tax)}</strong></div>
+                    <div class="totals-row"><span>Heffingskortingen totaal</span><strong>${this.currency(member.box1.credits.total)}</strong></div>
+                    <ul>${brackets}</ul>
+                </article>
             `;
-        }
-        document.getElementById('box1Details').innerHTML = box1Html;
-        document.getElementById('box1Total').textContent = this.formatCurrency(result.box1_total);
+        }).join("");
+        document.getElementById("box1Members").innerHTML = box1Members;
 
-        // Update Box3
-        document.getElementById('totalAssets').textContent = this.formatCurrency(result.total_assets);
-        document.getElementById('box3Rate').textContent = result.box3_rate.toFixed(2) + '%';
+        document.getElementById("box2Income").textContent = this.currency(box2.total_taxable_income);
+        document.getElementById("box2Rate").textContent = `${box2.tax_rate.toFixed(2)}%`;
+        document.getElementById("box2Tax").textContent = this.currency(box2.total_tax);
 
-        let allocationHtml = '';
-        for (const [name, amount] of Object.entries(result.box3_allocation)) {
-            allocationHtml += `
-                <div class="member-detail-row">
-                    <span class="member-detail-label">${name}:</span>
-                    <span class="member-detail-value">${this.formatCurrency(amount)}</span>
-                </div>
-            `;
-        }
-        document.getElementById('box3Allocation').innerHTML = allocationHtml;
-        document.getElementById('box3Total').textContent = this.formatCurrency(result.box3_tax);
+        document.getElementById("box3NetAssets").textContent = this.currency(box3.total_net_assets);
+        document.getElementById("box3TaxFree").textContent = this.currency(box3.tax_free_assets);
+        document.getElementById("box3Correction").textContent = `${(box3.correction_factor * 100).toFixed(2)}%`;
+        document.getElementById("box3Income").textContent = this.currency(box3.corrected_deemed_return);
+        document.getElementById("box3Tax").textContent = this.currency(box3.total_tax);
 
-        // Show how Box1 brackets were applied in the final settlement section.
-        const bracketRows = result.box1_brackets_applied || [];
-        let bracketHtml = '';
-        if (bracketRows.length === 0) {
-            bracketHtml = `
-                <div class="member-detail-row">
-                    <span class="member-detail-label">Geen belastbaar Box1-inkomen</span>
-                    <span class="member-detail-value">${this.formatCurrency(0)}</span>
-                </div>
-            `;
-        } else {
-            bracketRows.forEach((row) => {
-                const ratePct = (row.rate * 100).toFixed(2);
-                bracketHtml += `
-                    <div class="member-detail-row">
-                        <span class="member-detail-label">${row.description} (${ratePct}% over ${this.formatCurrency(row.taxable_amount)})</span>
-                        <span class="member-detail-value">${this.formatCurrency(row.tax_amount)}</span>
-                    </div>
-                `;
-            });
-        }
-        document.getElementById('box1BracketApplication').innerHTML = bracketHtml;
+        const allocationRows = Object.entries(box3.allocation || {}).map(([memberId, amount]) => {
+            return `<div class="totals-row"><span>Box3 toerekening ${memberId}</span><strong>${this.currency(amount)}</strong></div>`;
+        }).join("");
+        document.getElementById("box3Allocation").innerHTML = allocationRows;
 
-        const savingsRate = (result.box3_savings_return_rate || 0).toFixed(2);
-        const investmentRate = (result.box3_investment_return_rate || 0).toFixed(2);
-        const correctionFactor = result.box3_correction_factor || 0;
-        const correctionPct = (correctionFactor * 100).toFixed(2);
-        document.getElementById('box3SavingsAssets').textContent = this.formatCurrency(result.box3_savings_assets || 0);
-        document.getElementById('box3InvestmentAssets').textContent = this.formatCurrency(result.box3_investment_assets || 0);
-        document.getElementById('box3SavingsDeemedReturn').textContent = `${this.formatCurrency(result.box3_corrected_savings_deemed_return || 0)} (na correctie, ${savingsRate}% fictief rendement)`;
-        document.getElementById('box3InvestmentDeemedReturn').textContent = `${this.formatCurrency(result.box3_corrected_investment_deemed_return || 0)} (na correctie, ${investmentRate}% fictief rendement)`;
-        document.getElementById('box3CorrectionFactor').textContent = `${correctionPct}% (gecorrigeerd_vermogen / totaal_vermogen)`;
+        document.getElementById("box1Box3Tax").textContent = this.currency(settlement.box1_box3_tax);
+        document.getElementById("premiumAow").textContent = this.currency(settlement.premiums.aow);
+        document.getElementById("premiumAnw").textContent = this.currency(settlement.premiums.anw);
+        document.getElementById("premiumWlz").textContent = this.currency(settlement.premiums.wlz);
+        document.getElementById("premiumTotal").textContent = this.currency(settlement.premiums.total);
+        document.getElementById("box2TaxInSettlement").textContent = this.currency(settlement.box2_tax);
+        document.getElementById("grossIncomeTax").textContent = this.currency(settlement.gross_income_tax);
+        document.getElementById("totalCredits").textContent = this.currency(settlement.total_tax_credits);
+        document.getElementById("totalPrepaid").textContent = this.currency(settlement.total_prepaid_taxes);
+        document.getElementById("netSettlement").textContent = this.currency(settlement.net_settlement);
 
-        // Update process flow details
-        document.getElementById('box1TaxableIncomeTotal').textContent = this.formatCurrency(result.box1_taxable_income_total);
-        document.getElementById('box3DeemedReturn').textContent = this.formatCurrency(result.box3_deemed_return);
-        document.getElementById('box3TaxFreeAssets').textContent = this.formatCurrency(result.box3_tax_free_assets);
-        document.getElementById('box3CorrectedDeemedReturn').textContent = this.formatCurrency(result.box3_corrected_deemed_return);
-        document.getElementById('verzamelinkomen').textContent = this.formatCurrency(result.verzamelinkomen);
-        document.getElementById('grossIncomeTax').textContent = this.formatCurrency(result.gross_income_tax);
-        document.getElementById('totalPrepaidTaxes').textContent = this.formatCurrency(result.total_prepaid_taxes);
-        document.getElementById('totalTaxCredits').textContent = this.formatCurrency(result.total_tax_credits);
-        document.getElementById('netSettlement').textContent = this.formatCurrency(result.net_settlement);
-
-        // Update final total
-        document.getElementById('finalTotalTax').textContent = this.formatCurrency(result.net_settlement);
+        const filingList = (result.filing_steps || []).map((step) => `<li>${step}</li>`).join("");
+        document.getElementById("filingSteps").innerHTML = filingList;
     },
 
-    // Format currency
-    formatCurrency(amount) {
-        return new Intl.NumberFormat('nl-NL', {
-            style: 'currency',
-            currency: 'EUR'
-        }).format(amount);
+    currency(value) {
+        return new Intl.NumberFormat("nl-NL", {
+            style: "currency",
+            currency: "EUR",
+        }).format(Number(value || 0));
     },
-
-    // Clear results
-    clearResults() {
-        this.resultsSection.style.display = 'none';
-        this.emptyState.style.display = 'block';
-    }
 };
 
-// Initialize app when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
-    app.init();
-});
+document.addEventListener("DOMContentLoaded", () => app.init());

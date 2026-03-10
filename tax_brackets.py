@@ -38,8 +38,8 @@ def create_2025_brackets() -> list[TaxBracket]:
         TaxBracket(
             lower_bound=Decimal(0),
             upper_bound=Decimal(37_895),
-            rate=Decimal("0.1906"),
-            description="First bracket (19.06%)"
+            rate=Decimal("0.0817"),
+            description="First bracket (8.17%)"
         ),
         TaxBracket(
             lower_bound=Decimal(37_895),
@@ -66,10 +66,10 @@ TAX_CONFIG_2025 = TaxYearConfig(
     year=2025,
     box1_brackets=create_2025_brackets(),
     box3_rate=Decimal("0.3600"),  # 36% tax on deemed return
-    box3_savings_return_rate=Decimal("0.0144"),
+    box3_savings_return_rate=Decimal("0.0137"),
     box3_investment_return_rate=Decimal("0.0588"),
-    box3_tax_free_assets_single=Decimal("57000"),
-    box3_tax_free_assets_partner=Decimal("114000"),
+    box3_tax_free_assets_single=Decimal("57684"),
+    box3_tax_free_assets_partner=Decimal("115368"),
     general_tax_credit=Decimal(2_917),  # 2025 general tax credit
     description="Dutch tax year 2025 - Realistic rates"
 )

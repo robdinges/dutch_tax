@@ -104,7 +104,7 @@ class EigenwoningforfaitIntegrationTests(unittest.TestCase):
         tax_with_home = with_home.compute_box1_tax(config_2025.box1_brackets)
 
         # For WOZ 400,000 in 2025 band: 0.35% => 1,400 additional taxable income.
-        expected_delta = Decimal("1400") * Decimal("0.1906")
+        expected_delta = Decimal("1400") * Decimal("0.0817")
         self.assertEqual(tax_with_home - tax_without_home, expected_delta)
 
 
