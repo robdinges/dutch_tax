@@ -62,6 +62,23 @@
                     <div id="membersContainer"></div>
                 </section>
 
+                <section class="flow-step" data-step="2a">
+                    <h3>2a. Eigen woning (huishouden)</h3>
+                    <div class="subblock">
+                        <div class="grid two">
+                            <label class="inline-toggle">Eigen woning aanwezig
+                                <input type="checkbox" id="has-own-home-household">
+                            </label>
+                            <label>WOZ-waarde
+                                <input type="number" min="0" step="1" id="woz-household" value="0">
+                            </label>
+                            <label>Periode (0-1)
+                                <input type="number" min="0" max="1" step="0.01" id="period-household" value="1">
+                            </label>
+                        </div>
+                    </div>
+                </section>
+
                 <section class="flow-step" data-step="3">
                     <h3>3. Box 3 (gezamenlijk huishouden)</h3>
                     <div class="subblock">
@@ -174,6 +191,7 @@
                 <section class="result-block">
                     <h3>Box 3 - Vermogen</h3>
                     <div class="totals-row"><span>Netto vermogen na schulden</span><strong id="box3NetAssets">EUR 0</strong></div>
+                    <div class="totals-row"><span>Negatieve inkomenspost schulden</span><strong id="box3DebtIncomePost">EUR 0</strong></div>
                     <div class="totals-row"><span>Heffingsvrij vermogen</span><strong id="box3TaxFree">EUR 0</strong></div>
                     <div class="totals-row"><span>Correctiefactor</span><strong id="box3Correction">0%</strong></div>
                     <div class="totals-row"><span>Inkomen Box 3 (fictief rendement)</span><strong id="box3Income">EUR 0</strong></div>

@@ -118,30 +118,21 @@ const app = {
 
             <section class="subblock">
                 <h5>Box 1 - Inkomsten (1-4)</h5>
+                <div class="grid two">
+                    <label class="inline-toggle">Ontvangt al AOW
+                        <input type="checkbox" id="has-aow-${index}">
+                    </label>
+                </div>
                 <div class="editor-header income-header">
                     <span>Soort</span>
                     <span>Instantie/bedrijf/werkgever</span>
                     <span>Bedrag</span>
+                    <span>Arbeidskorting</span>
                     <span>Loonheffing</span>
                     <span>Actie</span>
                 </div>
                 <div id="incomes-list-${index}"></div>
                 <button type="button" class="btn ghost" onclick="app.addIncomeRow(${index})">+ Inkomensregel</button>
-            </section>
-
-            <section class="subblock">
-                <h5>Woninggerelateerde berekening (5-7)</h5>
-                <div class="grid two">
-                    <label class="inline-toggle">Eigen woning aanwezig
-                        <input type="checkbox" id="has-own-home-${index}">
-                    </label>
-                    <label>WOZ-waarde
-                        <input type="number" min="0" step="1" id="woz-${index}" value="0">
-                    </label>
-                    <label>Periode (0-1)
-                        <input type="number" min="0" max="1" step="0.01" id="period-${index}" value="1">
-                    </label>
-                </div>
             </section>
 
             <section class="subblock">
@@ -274,30 +265,34 @@ const app = {
     },
 
     updateBox3Subtotals() {
-        const sumBySelector = (selector, amountKind = "amount") => {
+        const sumBySelector = (selector, amountKind = "amount", excludeGreen = false) => {
             const rows = document.querySelectorAll(selector);
             let sum = 0;
             rows.forEach((row) => {
+                const isGreen = Boolean(row.querySelector("[data-kind='is-green']")?.checked);
+                if (excludeGreen && isGreen) {
+                    return;
+                }
                 sum += Number(row.querySelector(`[data-kind='${amountKind}']`)?.value || 0);
             });
             return sum;
         };
 
-        const savings = sumBySelector("#savings-list > div");
-        const investments = sumBySelector("#investments-list > div");
+        const savings = sumBySelector("#savings-list > div", "amount", true);
+        const investments = sumBySelector("#investments-list > div", "amount", true);
         const otherAssets = sumBySelector("#other-assets-list > div");
         const debts = sumBySelector("#debts-list > div");
 
         document.getElementById("subtotalSavings").textContent = this.currency(savings);
         document.getElementById("subtotalInvestments").textContent = this.currency(investments);
         document.getElementById("subtotalOtherAssets").textContent = this.currency(otherAssets);
-        document.getElementById("subtotalDebts").textContent = this.currency(debts);
+        document.getElementById("subtotalDebts").textContent = this.currency(-debts);
 
         document.getElementById("deemedSavings").textContent = this.currency(savings * this.BOX3_SAVINGS_RATE);
         document.getElementById("deemedInvestments").textContent = this.currency(investments * this.BOX3_INVESTMENTS_RATE);
     },
 
-    addIncomeRow(index, type = "EMPLOYMENT", source = "", amount = 0, wageWithholding = 0) {
+    addIncomeRow(index, type = "EMPLOYMENT", source = "", amount = 0, laborCredit = 0, wageWithholding = 0) {
         const container = document.getElementById(`incomes-list-${index}`);
         const rowId = this.makeRowId(`income-row-${index}`);
         const node = document.createElement("div");
@@ -317,6 +312,9 @@ const app = {
             </label>
             <label>Bedrag
                 <input type="number" min="0" step="1" data-kind="income-amount" value="${amount}">
+            </label>
+            <label>Arbeidskorting
+                <input type="number" min="0" step="1" data-kind="income-labor-credit" value="${laborCredit}">
             </label>
             <label>Loonheffing
                 <input type="number" min="0" step="1" data-kind="income-withholding" value="${wageWithholding}">
@@ -385,7 +383,7 @@ const app = {
             name: row.querySelector("[data-kind='name']")?.value || "Spaarrekening",
             amount: Number(row.querySelector("[data-kind='amount']")?.value || 0),
             is_green: Boolean(row.querySelector("[data-kind='is-green']")?.checked),
-        })).filter((x) => x.name || x.amount > 0);
+        })).filter((x) => x.name || Math.abs(x.amount) > 0);
 
         const investmentAccounts = collect("#investments-list > div").map((row) => ({
             name: row.querySelector("[data-kind='name']")?.value || "Beleggingsrekening",
@@ -401,13 +399,17 @@ const app = {
 
         const debts = collect("#debts-list > div").map((row) => ({
             name: row.querySelector("[data-kind='name']")?.value || "Schuld",
-            amount: Number(row.querySelector("[data-kind='amount']")?.value || 0),
+            amount: -Math.abs(Number(row.querySelector("[data-kind='amount']")?.value || 0)),
         })).filter((x) => x.name || x.amount > 0);
 
-        const totalSavings = savingsAccounts.reduce((sum, item) => sum + item.amount, 0);
-        const totalInvestments = investmentAccounts.reduce((sum, item) => sum + item.amount, 0);
+        const totalSavings = savingsAccounts
+            .filter((item) => !item.is_green)
+            .reduce((sum, item) => sum + item.amount, 0);
+        const totalInvestments = investmentAccounts
+            .filter((item) => !item.is_green)
+            .reduce((sum, item) => sum + item.amount, 0);
         const totalOtherAssets = otherAssets.reduce((sum, item) => sum + item.amount, 0);
-        const totalDebts = debts.reduce((sum, item) => sum + item.amount, 0);
+        const totalDebts = Math.abs(debts.reduce((sum, item) => sum + item.amount, 0));
         const totalDividendWithholding = investmentAccounts.reduce((sum, item) => sum + item.dividend_withholding, 0);
 
         return {
@@ -438,9 +440,10 @@ const app = {
                 const type = row.querySelector("[data-kind='income-type']")?.value || "EMPLOYMENT";
                 const source = row.querySelector("[data-kind='income-source']")?.value || "";
                 const amount = Number(row.querySelector("[data-kind='income-amount']")?.value || 0);
+                const laborCredit = Number(row.querySelector("[data-kind='income-labor-credit']")?.value || 0);
                 const wageWithholding = Number(row.querySelector("[data-kind='income-withholding']")?.value || 0);
                 if (amount > 0) {
-                    incomes.push({ type, amount, source, description: source || type });
+                    incomes.push({ type, amount, labor_credit: laborCredit, source, description: source || type });
                     wageWithholdingTotal += wageWithholding;
                 }
             });
@@ -478,11 +481,7 @@ const app = {
                 box1: {
                     incomes,
                     deductions,
-                    own_home: {
-                        has_own_home: document.getElementById(`has-own-home-${i}`).checked,
-                        woz_value: this.readNumber(`woz-${i}`),
-                        period_fraction: this.readNumber(`period-${i}`),
-                    },
+                    has_aow: document.getElementById(`has-aow-${i}`).checked,
                     tax_credits: taxCredits,
                 },
                 box2: {
@@ -500,6 +499,13 @@ const app = {
             household_id: document.getElementById("householdId").value || "WEB_001",
             fiscal_partner: document.getElementById("fiscalPartner").checked,
             children_count: this.readNumber("childrenCount"),
+            household_box1: {
+                own_home: {
+                    has_own_home: document.getElementById("has-own-home-household").checked,
+                    woz_value: this.readNumber("woz-household"),
+                    period_fraction: this.readNumber("period-household"),
+                },
+            },
             allocation_strategy: this.allocationStrategy.value,
             custom_allocation: customAllocation,
             dividend_withholding_total: box3Household.total_dividend_withholding,
@@ -567,6 +573,7 @@ const app = {
                             income.type || "EMPLOYMENT",
                             income.source || income.description || "",
                             income.amount || 0,
+                            income.labor_credit || 0,
                             defaultPerRow
                         );
                     });
@@ -583,10 +590,7 @@ const app = {
                     });
                 }
 
-                const ownHome = box1.own_home || {};
-                document.getElementById(`has-own-home-${i}`).checked = Boolean(ownHome.has_own_home);
-                document.getElementById(`woz-${i}`).value = ownHome.woz_value || 0;
-                document.getElementById(`period-${i}`).value = ownHome.period_fraction || 1;
+                document.getElementById(`has-aow-${i}`).checked = Boolean(box1.has_aow);
 
                 const creditsContainer = document.getElementById(`credits-list-${i}`);
                 creditsContainer.innerHTML = "";
@@ -610,6 +614,12 @@ const app = {
             });
 
             const box3 = payload.box3_household || {};
+            const householdBox1 = payload.household_box1 || {};
+            const ownHome = householdBox1.own_home || payload.own_home || {};
+            document.getElementById("has-own-home-household").checked = Boolean(ownHome.has_own_home);
+            document.getElementById("woz-household").value = ownHome.woz_value || 0;
+            document.getElementById("period-household").value = ownHome.period_fraction || 1;
+
             this.savingsList.innerHTML = "";
             (box3.savings_accounts || []).forEach((row) => this.addSavingsRow(row.name || "", row.amount || 0, !!row.is_green));
             if ((box3.savings_accounts || []).length === 0) {
@@ -629,9 +639,9 @@ const app = {
             }
 
             this.debtsList.innerHTML = "";
-            (box3.debt_items || []).forEach((row) => this.addDebtRow(row.name || "", row.amount || 0));
+            (box3.debt_items || []).forEach((row) => this.addDebtRow(row.name || "", Math.abs(row.amount || 0)));
             if ((box3.debt_items || []).length === 0) {
-                this.addDebtRow("", box3.debts || 0);
+                this.addDebtRow("", Math.abs(box3.debts || 0));
             }
 
             this.updateBox3Subtotals();
@@ -678,6 +688,7 @@ const app = {
         document.getElementById("box2Tax").textContent = this.currency(box2.total_tax);
 
         document.getElementById("box3NetAssets").textContent = this.currency(box3.total_net_assets);
+        document.getElementById("box3DebtIncomePost").textContent = this.currency(box3.debt_negative_income_post);
         document.getElementById("box3TaxFree").textContent = this.currency(box3.tax_free_assets);
         document.getElementById("box3Correction").textContent = `${(box3.correction_factor * 100).toFixed(2)}%`;
         document.getElementById("box3Income").textContent = this.currency(box3.corrected_deemed_return);

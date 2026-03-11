@@ -9,18 +9,18 @@ Deze applicatie rekent de particuliere Nederlandse inkomstenbelasting door op ba
 5. Box 2 berekenen
 6. Box 3 berekenen (incl. schulden)
 7. Totale belasting + verrekening
-8. Aangifte-checklist tonen
+8. Eindresultaat tonen
 
 De webapp bevat zowel de rekenengine als een overzichtelijke UI die exact op deze flow is ingericht.
 
 ## Kernfunctionaliteit
 
-- Box 1: inkomsten, eigenwoningforfait, aftrekposten, progressieve schijven
+- Box 1: inkomsten met arbeidskorting per regel, huishoud-eigenwoningforfait, aftrekposten, progressieve schijven
 - Box 1 kortingen: meerdere losse heffingskortingen die de gebruiker zelf invult
 - Box 2: aanmerkelijk belang (>=5%), dividend/verkoop minus verkrijgingsprijs
 - Box 3: spaargeld, beleggingen, overige bezittingen, schulden, heffingsvrij vermogen
 - Partnerlogica: verdeling Box 3 met `EQUAL`, `PROPORTIONAL` of `CUSTOM`
-- Premies volksverzekeringen: AOW/Anw/Wlz worden na Box1+Box3 toegevoegd
+- Premies volksverzekeringen: AOW (0% bij AOW-gerechtigd, anders 17.9%), Anw (0.1%), Wlz (9.65%)
 - Eindafrekening: belasting + premies, daarna kortingen, daarna voorheffingen
 - JSON-opslag en herladen van invoer via `submissions/<household_id>.json`
 
@@ -65,17 +65,13 @@ http://127.0.0.1:8000
       "dividend_withholding": 300,
       "box1": {
         "incomes": [
-          {"type": "EMPLOYMENT", "amount": 65000}
+          {"type": "EMPLOYMENT", "amount": 65000, "labor_credit": 2400}
         ],
         "deductions": [
           {"type": "PERSONAL_ALLOWANCE", "name": "Hypotheekrente", "amount": 7000},
           {"type": "PERSONAL_ALLOWANCE", "name": "Giften", "amount": 500}
         ],
-        "own_home": {
-          "has_own_home": true,
-          "woz_value": 420000,
-          "period_fraction": 1
-        },
+        "has_aow": false,
         "tax_credits": [
           {"name": "Algemene heffingskorting", "amount": 1500},
           {"name": "Arbeidskorting", "amount": 2400}
@@ -94,7 +90,14 @@ http://127.0.0.1:8000
         "debts": 10000
       }
     }
-  ]
+  ],
+  "household_box1": {
+    "own_home": {
+      "has_own_home": true,
+      "woz_value": 420000,
+      "period_fraction": 1
+    }
+  }
 }
 ```
 

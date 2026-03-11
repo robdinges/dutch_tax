@@ -1,6 +1,6 @@
 # DO Bestand - Invoer, Berekening en Output (Procesflow 2026)
 
-Dit document beschrijft de actuele gegevensstructuur en de exacte rekenstappen in de webapp.
+Dit document beschrijft de actuele gegevensstructuur en rekenstappen in de webapp.
 
 ## 1. Invoerstructuur
 
@@ -11,6 +11,8 @@ Dit document beschrijft de actuele gegevensstructuur en de exacte rekenstappen i
 - `children_count` (number)
 - `allocation_strategy` (`EQUAL` | `PROPORTIONAL` | `CUSTOM`)
 - `custom_allocation` (map `member_id -> percentage`)
+- `household_box1.own_home`: `{ has_own_home, woz_value, period_fraction }`
+- `box3_household` (object)
 - `members` (array)
 
 ### 1.2 Persoon (`members[]`)
@@ -19,17 +21,16 @@ Dit document beschrijft de actuele gegevensstructuur en de exacte rekenstappen i
 - `full_name` (string)
 - `bsn` (string)
 - `wage_withholding` (number)
-- `dividend_withholding` (number)
+- `dividend_withholding` (number, optioneel)
 - `other_prepaid_taxes` (number, optioneel)
 - `box1` (object)
 - `box2` (object)
-- `box3` (object)
 
 ### 1.3 Box 1
 
-- `box1.incomes[]`: `{ type, amount }`
-- `box1.deductions[]`: `{ type, amount }`
-- `box1.own_home`: `{ has_own_home, woz_value, period_fraction }`
+- `box1.incomes[]`: `{ type, amount, labor_credit, source }`
+- `box1.deductions[]`: `{ type, name, amount }`
+- `box1.has_aow`: boolean (ontvangt al AOW)
 - `box1.tax_credits[]`: `{ name, amount }`
 
 ### 1.4 Box 2
@@ -39,25 +40,24 @@ Dit document beschrijft de actuele gegevensstructuur en de exacte rekenstappen i
 - `box2.sale_gain` (number)
 - `box2.acquisition_price` (number)
 
-### 1.5 Box 3
+### 1.5 Box 3 (huishouden)
 
-- `box3.savings` (number)
-- `box3.investments` (number)
-- `box3.other_assets` (number)
-- `box3.debts` (number)
+- `box3_household.savings_accounts[]`: `{ name, amount, is_green }`
+- `box3_household.investment_accounts[]`: `{ name, amount, is_green, dividend_withholding }`
+- `box3_household.other_assets_items[]`: `{ name, amount }`
+- `box3_household.debt_items[]`: `{ name, amount }`
 
 ## 2. Berekeningsstappen
 
 ### 2.1 Box 1 (per persoon)
 
-1. `gross_income = sum(incomes.amount)`
-2. `eigenwoningforfait` op basis van WOZ en periode (indien eigen woning)
-3. `deductions = sum(deductions.amount)`
-4. `taxable_income = max(0, gross_income + eigenwoningforfait - deductions)`
-5. Box 1 belasting via progressieve schijven uit tax-config
-6. Heffingskortingen worden niet automatisch bepaald:
-- gebruiker voert meerdere losse posten in
-- totaal heffingskortingen = som van ingevoerde posten
+1. Per inkomensregel: `net_line_income = amount - labor_credit`.
+1. `gross_income = sum(net_line_income)`.
+1. Huishoudelijk eigenwoningforfait op basis van WOZ en periode.
+1. Eigenwoningforfait gelijk verdeeld over personen.
+1. `deductions = sum(deductions.amount)`.
+1. `taxable_income = max(0, gross_income + eigenwoningforfait_share - deductions)`.
+1. Box 1 belasting via progressieve schijven.
 
 ### 2.2 Box 2 (per persoon)
 
@@ -73,40 +73,50 @@ Anders:
 
 ### 2.3 Box 3 (huishouden)
 
-1. Vermogen per persoon:
+`Groen sparen` en `groene beleggingen` tellen niet mee in de totale grondslag voor sparen/beleggen.
+
+1. Vermogenscomponenten:
+
 - `gross_assets = savings + investments + other_assets`
-- `net_assets = max(0, gross_assets - debts)`
+- `total_debts = sum(abs(debt_items.amount))`
+- `total_net_assets = max(0, gross_assets - total_debts)`
 
-2. Huishoudtotalen:
-- `total_net_assets = sum(net_assets)`
-- `tax_free_assets = single_heffingsvrij_vermogen * aantal_personen`
+1. Fictief rendement:
 
-3. Fictief rendement:
-- eerst nettofactor toepassen om schulden mee te nemen
 - `deemed_return_savings = net_savings * savings_return_rate`
 - `deemed_return_non_savings = net_non_savings * investment_return_rate`
 - `deemed_return_total = deemed_return_savings + deemed_return_non_savings`
 
-4. Correctie heffingsvrij vermogen:
+1. Correctie heffingsvrij vermogen:
+
 - `corrected_assets = max(total_net_assets - tax_free_assets, 0)`
 - `correction_factor = corrected_assets / total_net_assets`
-- `box3_income = deemed_return_total * correction_factor`
+- `deemed_income_before_debts = deemed_return_total * correction_factor`
 
-5. Box 3 belasting:
-- `box3_tax = box3_income * box3_rate`
+1. Schulden als negatieve inkomenspost:
 
-6. Verdeling Box 3 belasting:
+- `debt_negative_income_post = -total_debts`
+- `box3_income = deemed_income_before_debts + debt_negative_income_post`
+- `box3_taxable_income = max(0, box3_income)`
+- `box3_tax = box3_taxable_income * box3_rate`
+
+1. Verdeling Box 3 belasting:
+
 - `EQUAL`: gelijk
 - `PROPORTIONAL`: naar netto vermogen
 - `CUSTOM`: op basis van percentages
 
-### 2.4 Totale belasting en verrekening
+### 2.4 Premies volksverzekeringen
 
-- `box1_box3_tax = box1_total + box3_tax`
-- Premies volksverzekeringen op premie-basis `min(box1_taxable_income_total, 19.832)`:
-- `AOW = 0.0%`
+Op basis van Box 1 belastbaar inkomen per persoon:
+
+- `AOW = 17.9%`, behalve `0%` bij `box1.has_aow = true`
 - `Anw = 0.1%`
 - `Wlz = 9.65%`
+
+### 2.5 Totale belasting en verrekening
+
+- `box1_box3_tax = box1_total + box3_tax`
 - `gross_income_tax = box1_box3_tax + box2_total + premie_totaal`
 - `total_tax_credits = sum(member credits)`
 - `total_prepaid_taxes = sum(wage_withholding + dividend_withholding + other_prepaid_taxes)`
@@ -142,15 +152,6 @@ Interpretatie:
 - `result_type`
 - `effective_rate`
 
-## 4. Aangifte-checklist in output
+## 4. Opmerking
 
-De API levert standaard:
-
-1. Persoonsgegevens controleren
-2. Inkomsten invoeren
-3. Woning en hypotheek invoeren
-4. Vermogen invoeren
-5. Aftrekposten invoeren
-6. Partnerverdeling optimaliseren
-7. Controle
-8. Indienen
+De checklist-uitvoer is verwijderd uit API-response en UI.

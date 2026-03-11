@@ -18,8 +18,7 @@ app.config["SECRET_KEY"] = "dutch-tax-calculator-secret"
 
 
 BOX2_RATE_2025 = Decimal("0.269")
-PREMIUM_BASE_CAP = Decimal("19832")
-PREMIUM_AOW_RATE = Decimal("0.0000")
+PREMIUM_AOW_RATE = Decimal("0.1790")
 PREMIUM_ANW_RATE = Decimal("0.0010")
 PREMIUM_WLZ_RATE = Decimal("0.0965")
 
@@ -174,6 +173,20 @@ def calculate_tax():
         allocation_strategy = data.get("allocation_strategy", "PROPORTIONAL")
         custom_allocation = data.get("custom_allocation", {})
 
+        household_box1 = data.get("household_box1") or {}
+        household_own_home = household_box1.get("own_home", data.get("own_home", {}))
+        household_woz_value = round_down_euro(dec(household_own_home.get("woz_value", "0")))
+        household_period_fraction = float(household_own_home.get("period_fraction", 1) or 1)
+        household_has_own_home = bool(household_own_home.get("has_own_home", False)) and household_woz_value > 0
+        household_eigenwoningforfait = (
+            round_down_euro(dec(calculate_eigenwoningforfait(float(household_woz_value), household_period_fraction)))
+            if household_has_own_home
+            else Decimal("0")
+        )
+        eigenwoningforfait_per_member = (
+            round_down_euro(household_eigenwoningforfait / Decimal(len(members))) if members else Decimal("0")
+        )
+
         household_box3 = data.get("box3_household") or {}
         use_household_box3 = bool(household_box3)
 
@@ -183,6 +196,9 @@ def calculate_tax():
         total_tax_credits = Decimal("0")
         total_prepaid_taxes = Decimal("0")
         box1_brackets_applied_totals: dict[str, dict] = {}
+        premium_aow_total = Decimal("0")
+        premium_anw_total = Decimal("0")
+        premium_wlz_total = Decimal("0")
 
         member_net_assets: dict[str, Decimal] = {}
         member_savings: dict[str, Decimal] = {}
@@ -196,25 +212,32 @@ def calculate_tax():
 
             incomes = member.get("box1", {}).get("incomes", member.get("incomes", []))
             deductions = member.get("box1", {}).get("deductions", member.get("deductions", []))
-            own_home = member.get("box1", {}).get("own_home", member.get("own_home", {}))
+            has_aow = bool(member.get("box1", {}).get("has_aow", member.get("has_aow", False)))
             tax_credits = member.get("box1", {}).get("tax_credits", member.get("tax_credits", []))
 
-            gross_income = sum((round_down_euro(dec(item.get("amount"))) for item in incomes), Decimal("0"))
+            gross_income = Decimal("0")
+            total_arbeidskorting = Decimal("0")
+            for item in incomes:
+                line_income = round_down_euro(dec(item.get("amount", item.get("gross_amount"))))
+                labor_credit = round_up_euro(dec(item.get("labor_credit", item.get("arbeidskorting", "0"))))
+                gross_income += line_income - labor_credit
+                total_arbeidskorting += labor_credit
             total_deductions = sum((round_up_euro(dec(item.get("amount"))) for item in deductions), Decimal("0"))
 
-            woz_value = round_down_euro(dec(own_home.get("woz_value", "0")))
-            period_fraction = float(own_home.get("period_fraction", 1) or 1)
-            has_own_home = bool(own_home.get("has_own_home", False)) and woz_value > 0
-            eigenwoningforfait = (
-                round_down_euro(dec(calculate_eigenwoningforfait(float(woz_value), period_fraction)))
-                if has_own_home
-                else Decimal("0")
-            )
+            eigenwoningforfait = eigenwoningforfait_per_member
 
             box1_taxable_income = round_down_euro(max(Decimal("0"), gross_income + eigenwoningforfait - total_deductions))
             box1_brackets = compute_box1_bracket_breakdown(box1_taxable_income, config.box1_brackets)
             box1_tax = round_down_euro(sum((dec(row["tax_amount"]) for row in box1_brackets), Decimal("0")))
             box1_total += box1_tax
+
+            premium_basis_member = box1_taxable_income
+            premium_aow_member = Decimal("0") if has_aow else round_down_euro(premium_basis_member * PREMIUM_AOW_RATE)
+            premium_anw_member = round_down_euro(premium_basis_member * PREMIUM_ANW_RATE)
+            premium_wlz_member = round_down_euro(premium_basis_member * PREMIUM_WLZ_RATE)
+            premium_aow_total += premium_aow_member
+            premium_anw_total += premium_anw_member
+            premium_wlz_total += premium_wlz_member
 
             for row in box1_brackets:
                 desc = row["description"]
@@ -262,7 +285,11 @@ def calculate_tax():
                 savings = round_down_euro(dec(box3_data.get("savings")))
                 investment_accounts = box3_data.get("investment_accounts", [])
                 accounts_investments_total = sum(
-                    (round_down_euro(dec(account.get("value"))) for account in investment_accounts),
+                    (
+                        round_down_euro(dec(account.get("amount", account.get("value"))))
+                        for account in investment_accounts
+                        if not bool(account.get("is_green", account.get("isGreen", False)))
+                    ),
                     Decimal("0"),
                 )
                 investments = (
@@ -305,6 +332,8 @@ def calculate_tax():
                     "full_name": full_name,
                     "box1": {
                         "gross_income": float(gross_income),
+                        "labor_credit_total": float(total_arbeidskorting),
+                        "has_aow": has_aow,
                         "eigenwoningforfait": float(eigenwoningforfait),
                         "deductions": float(total_deductions),
                         "taxable_income": float(box1_taxable_income),
@@ -352,11 +381,19 @@ def calculate_tax():
             debt_items = household_box3.get("debt_items", [])
 
             accounts_savings_total = sum(
-                (round_down_euro(dec(account.get("amount"))) for account in savings_accounts),
+                (
+                    round_down_euro(dec(account.get("amount")))
+                    for account in savings_accounts
+                    if not bool(account.get("is_green", account.get("isGreen", False)))
+                ),
                 Decimal("0"),
             )
             accounts_investments_total = sum(
-                (round_down_euro(dec(account.get("amount", account.get("value")))) for account in investment_accounts),
+                (
+                    round_down_euro(dec(account.get("amount", account.get("value"))))
+                    for account in investment_accounts
+                    if not bool(account.get("is_green", account.get("isGreen", False)))
+                ),
                 Decimal("0"),
             )
             items_other_assets_total = sum(
@@ -364,7 +401,7 @@ def calculate_tax():
                 Decimal("0"),
             )
             items_debt_total = sum(
-                (round_up_euro(dec(item.get("amount"))) for item in debt_items),
+                (round_up_euro(abs(dec(item.get("amount")))) for item in debt_items),
                 Decimal("0"),
             )
 
@@ -427,8 +464,11 @@ def calculate_tax():
 
         corrected_assets = max(Decimal("0"), total_net_assets - tax_free_assets)
         correction_factor = (corrected_assets / total_net_assets) if total_net_assets > 0 else Decimal("0")
-        box3_income = round_down_euro(deemed_return_total * correction_factor)
-        box3_tax = round_down_euro(box3_income * config.box3_rate)
+        deemed_box3_income = round_down_euro(deemed_return_total * correction_factor)
+        debt_negative_income_post = -total_debts
+        box3_income = round_down_euro(deemed_box3_income + debt_negative_income_post)
+        box3_taxable_income = max(Decimal("0"), box3_income)
+        box3_tax = round_down_euro(box3_taxable_income * config.box3_rate)
 
         custom_pct_map = {
             member_id: dec(value)
@@ -457,10 +497,10 @@ def calculate_tax():
         )
         verzamelinkomen = box1_taxable_income_total + box2_taxable_income_total + box3_income
 
-        premium_basis = min(box1_taxable_income_total, PREMIUM_BASE_CAP)
-        premium_aow = round_down_euro(premium_basis * PREMIUM_AOW_RATE)
-        premium_anw = round_down_euro(premium_basis * PREMIUM_ANW_RATE)
-        premium_wlz = round_down_euro(premium_basis * PREMIUM_WLZ_RATE)
+        premium_basis = box1_taxable_income_total
+        premium_aow = premium_aow_total
+        premium_anw = premium_anw_total
+        premium_wlz = premium_wlz_total
         total_premiums = premium_aow + premium_anw + premium_wlz
 
         box1_box3_tax = box1_total + box3_tax
@@ -515,7 +555,10 @@ def calculate_tax():
                     "deemed_return_non_savings": float(deemed_return_non_savings),
                     "deemed_return_total": float(deemed_return_total),
                     "correction_factor": float(correction_factor),
+                    "deemed_income_before_debts": float(deemed_box3_income),
+                    "debt_negative_income_post": float(debt_negative_income_post),
                     "corrected_deemed_return": float(box3_income),
+                    "taxable_income": float(box3_taxable_income),
                     "total_tax": float(box3_tax),
                     "allocation": {member_id: float(value) for member_id, value in box3_allocation.items()},
                 },

@@ -194,7 +194,7 @@ select:focus {
 }
 
 .editor-header.income-header {
-    grid-template-columns: 1.1fr 1.6fr 1fr 1fr auto;
+    grid-template-columns: 1fr 1.5fr 1fr 1fr 1fr auto;
 }
 
 .editor-header.simple-header {
@@ -217,7 +217,7 @@ select:focus {
 }
 
 .editor-row.income-row {
-    grid-template-columns: 1.1fr 1.6fr 1fr 1fr auto;
+    grid-template-columns: 1fr 1.5fr 1fr 1fr 1fr auto;
 }
 
 .editor-row.simple-row {

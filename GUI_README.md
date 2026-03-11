@@ -1,58 +1,69 @@
 # GUI Handleiding - Procesflow Editie
 
-De nieuwe UI is opgezet als een compacte workflow met twee kolommen:
+De UI is opgebouwd als workflow met twee kolommen.
 
-- Links: volledige invoer volgens de processtappen
-- Rechts: live-resultaten in Box 1, Box 2, Box 3 en eindafrekening
+- Links: invoer volgens processtappen.
+- Rechts: resultaten voor Box 1, Box 2, Box 3 en eindafrekening.
 
 ## Schermopbouw
 
 ### 1. Invoerblok
 
-Bestaat uit drie stappen:
-
 1. `Verzamel gegevens`
+
 - Huishouden-ID
 - Aantal personen
 - Fiscaal partnerschap
 - Aantal kinderen
 - Box 3 verdelingsmethode
 
-2. `Persoonsdossiers`
+1. `Persoonsdossiers`
+
 Per persoon:
+
 - Basis (naam, BSN, voorheffingen)
-- Box 1 inkomsten
-- Box 1 woning en aftrek
+- Box 1 inkomsten (inclusief arbeidskorting per inkomensregel)
+- Box 1 AOW-status (checkbox per persoon)
 - Box 1 overige kortingen
 - Box 2 aanmerkelijk belang
-- Box 3 vermogen en schulden
 - Optioneel custom Box 3 percentage
 
-3. `Controle en berekenen`
+1. `Eigen woning (huishouden)`
+
+- Eigen woning aanwezig
+- WOZ-waarde
+- Periode
+
+1. `Box 3 huishouden`
+
+- Vermogen en schulden op huishoudniveau
+- Schulden worden als negatieve inkomenspost meegenomen in Box 3 inkomen
+
+1. `Controle en berekenen`
+
 - JSON importeren
 - Berekening starten
 
 ### 2. Resultatenblok
 
-Resultaten worden opgebouwd in dezelfde volgorde als de fiscale verwerking:
+Resultaten worden opgebouwd in fiscale volgorde.
 
 - KPI's: eindresultaat, effectief tarief, verzamelinkomen
 - Box 1: detail per persoon + schijven
 - Box 2: totaal belastbaar inkomen en belasting
 - Box 3: netto vermogen, heffingsvrij vermogen, correctie en toerekening
-- Verrekening: bruto belasting, heffingskortingen, voorheffingen, eindafrekening
-- Checklist: 8 stappen voor invullen aangifte
+- Verrekening: bruto belasting, premies AOW/Anw/Wlz, heffingskortingen, voorheffingen, eindafrekening
 
 ## UX-principes
 
-- Elke sectie volgt direct de fiscale flow
-- Formulieren zijn gegroepeerd per box om fouten te verminderen
-- Het ontwerp werkt op desktop en mobiel
-- JSON-opslag maakt hergebruik van dossiers makkelijk
+- Elke sectie volgt direct de fiscale flow.
+- Formulieren zijn gegroepeerd per box.
+- Ontwerp werkt op desktop en mobiel.
+- JSON-opslag maakt hergebruik van dossiers makkelijk.
 
 ## JSON laden
 
-Via "Laad JSON in formulier" kun je eerder opgeslagen payloads uit `submissions/` direct terugzetten in de UI.
+Via `Laad JSON in formulier` kun je payloads uit `submissions/` terugzetten in de UI.
 
 Ondersteund formaat:
 
