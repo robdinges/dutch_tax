@@ -131,7 +131,6 @@ Interpretatie:
 - `box3`
 - `settlement`
 - `verzamelinkomen`
-- `filing_steps`
 - `input_saved_to`
 
 ### 3.2 Settlement-object

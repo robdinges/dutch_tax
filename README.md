@@ -106,7 +106,6 @@ De response bevat:
 - `box1`, `box2`, `box3` huishoudtotalen
 - `settlement` met eindafrekening (`TE_BETALEN` of `TERUGGAAF`)
 - `verzamelinkomen`
-- `filing_steps` checklist voor invullen aangifte
 
 ## Documentatie
 
