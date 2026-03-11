@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from decimal import Decimal
+from decimal import Decimal, ROUND_CEILING, ROUND_FLOOR
 import json
 from pathlib import Path
 import re
@@ -29,6 +29,14 @@ def dec(value: object, default: str = "0") -> Decimal:
     if value in (None, ""):
         return Decimal(default)
     return Decimal(str(value))
+
+
+def round_down_euro(value: Decimal) -> Decimal:
+    return value.quantize(Decimal("1"), rounding=ROUND_FLOOR)
+
+
+def round_up_euro(value: Decimal) -> Decimal:
+    return value.quantize(Decimal("1"), rounding=ROUND_CEILING)
 
 
 def save_input_data_to_json(data: dict) -> str:
@@ -191,21 +199,21 @@ def calculate_tax():
             own_home = member.get("box1", {}).get("own_home", member.get("own_home", {}))
             tax_credits = member.get("box1", {}).get("tax_credits", member.get("tax_credits", []))
 
-            gross_income = sum((dec(item.get("amount")) for item in incomes), Decimal("0"))
-            total_deductions = sum((dec(item.get("amount")) for item in deductions), Decimal("0"))
+            gross_income = sum((round_down_euro(dec(item.get("amount"))) for item in incomes), Decimal("0"))
+            total_deductions = sum((round_up_euro(dec(item.get("amount"))) for item in deductions), Decimal("0"))
 
-            woz_value = dec(own_home.get("woz_value", "0"))
+            woz_value = round_down_euro(dec(own_home.get("woz_value", "0")))
             period_fraction = float(own_home.get("period_fraction", 1) or 1)
             has_own_home = bool(own_home.get("has_own_home", False)) and woz_value > 0
             eigenwoningforfait = (
-                dec(calculate_eigenwoningforfait(float(woz_value), period_fraction))
+                round_down_euro(dec(calculate_eigenwoningforfait(float(woz_value), period_fraction)))
                 if has_own_home
                 else Decimal("0")
             )
 
-            box1_taxable_income = max(Decimal("0"), gross_income + eigenwoningforfait - total_deductions)
+            box1_taxable_income = round_down_euro(max(Decimal("0"), gross_income + eigenwoningforfait - total_deductions))
             box1_brackets = compute_box1_bracket_breakdown(box1_taxable_income, config.box1_brackets)
-            box1_tax = sum((dec(row["tax_amount"]) for row in box1_brackets), Decimal("0"))
+            box1_tax = round_down_euro(sum((dec(row["tax_amount"]) for row in box1_brackets), Decimal("0")))
             box1_total += box1_tax
 
             for row in box1_brackets:
@@ -220,20 +228,21 @@ def calculate_tax():
                 box1_brackets_applied_totals[desc]["taxable_amount"] += dec(row["taxable_amount"])
                 box1_brackets_applied_totals[desc]["tax_amount"] += dec(row["tax_amount"])
 
-            total_member_credits = sum((dec(c.get("amount")) for c in tax_credits), Decimal("0"))
+            total_member_credits = sum((round_up_euro(dec(c.get("amount"))) for c in tax_credits), Decimal("0"))
             total_tax_credits += total_member_credits
 
             box2_data = member.get("box2", {})
             has_substantial_interest = bool(box2_data.get("has_substantial_interest", False))
-            dividend_income = dec(box2_data.get("dividend_income"))
-            sale_gain = dec(box2_data.get("sale_gain"))
-            acquisition_price = dec(box2_data.get("acquisition_price"))
+            dividend_income = round_down_euro(dec(box2_data.get("dividend_income")))
+            sale_gain = round_down_euro(dec(box2_data.get("sale_gain")))
+            acquisition_price = round_up_euro(dec(box2_data.get("acquisition_price")))
             box2_taxable_income = (
                 max(Decimal("0"), dividend_income + sale_gain - acquisition_price)
                 if has_substantial_interest
                 else Decimal("0")
             )
-            box2_tax = box2_taxable_income * BOX2_RATE_2025
+            box2_taxable_income = round_down_euro(box2_taxable_income)
+            box2_tax = round_down_euro(box2_taxable_income * BOX2_RATE_2025)
             box2_total += box2_tax
 
             if use_household_box3:
@@ -250,19 +259,19 @@ def calculate_tax():
                 member_debts[member_id] = Decimal("0")
             else:
                 box3_data = member.get("box3", {})
-                savings = dec(box3_data.get("savings"))
+                savings = round_down_euro(dec(box3_data.get("savings")))
                 investment_accounts = box3_data.get("investment_accounts", [])
                 accounts_investments_total = sum(
-                    (dec(account.get("value")) for account in investment_accounts),
+                    (round_down_euro(dec(account.get("value"))) for account in investment_accounts),
                     Decimal("0"),
                 )
                 investments = (
                     accounts_investments_total
                     if investment_accounts
-                    else dec(box3_data.get("investments"))
+                    else round_down_euro(dec(box3_data.get("investments")))
                 )
-                other_assets = dec(box3_data.get("other_assets"))
-                debts = dec(box3_data.get("debts"))
+                other_assets = round_down_euro(dec(box3_data.get("other_assets")))
+                debts = round_up_euro(dec(box3_data.get("debts")))
 
                 gross_assets = savings + investments + other_assets
                 net_assets = max(Decimal("0"), gross_assets - debts)
@@ -272,9 +281,9 @@ def calculate_tax():
                 member_other_assets[member_id] = other_assets
                 member_debts[member_id] = debts
 
-            wage_withholding = dec(member.get("wage_withholding", member.get("withheld_tax", "0")))
+            wage_withholding = round_up_euro(dec(member.get("wage_withholding", member.get("withheld_tax", "0"))))
             account_dividend_withholding_total = sum(
-                (dec(account.get("dividend_withholding")) for account in investment_accounts),
+                (round_up_euro(dec(account.get("dividend_withholding"))) for account in investment_accounts),
                 Decimal("0"),
             )
             dividend_withholding = (
@@ -283,10 +292,10 @@ def calculate_tax():
                 else (
                     account_dividend_withholding_total
                     if investment_accounts
-                    else dec(member.get("dividend_withholding", box2_data.get("withheld_dividend_tax", "0")))
+                    else round_up_euro(dec(member.get("dividend_withholding", box2_data.get("withheld_dividend_tax", "0"))))
                 )
             )
-            other_prepaid = dec(member.get("other_prepaid_taxes", "0"))
+            other_prepaid = round_up_euro(dec(member.get("other_prepaid_taxes", "0")))
             prepaid_taxes = wage_withholding + dividend_withholding + other_prepaid
             total_prepaid_taxes += prepaid_taxes
 
@@ -305,7 +314,7 @@ def calculate_tax():
                             "items": [
                                 {
                                     "name": c.get("name", "Heffingskorting"),
-                                    "amount": float(dec(c.get("amount"))),
+                                    "amount": float(round_up_euro(dec(c.get("amount")))),
                                 }
                                 for c in tax_credits
                             ],
@@ -343,52 +352,52 @@ def calculate_tax():
             debt_items = household_box3.get("debt_items", [])
 
             accounts_savings_total = sum(
-                (dec(account.get("amount")) for account in savings_accounts),
+                (round_down_euro(dec(account.get("amount"))) for account in savings_accounts),
                 Decimal("0"),
             )
             accounts_investments_total = sum(
-                (dec(account.get("amount", account.get("value"))) for account in investment_accounts),
+                (round_down_euro(dec(account.get("amount", account.get("value")))) for account in investment_accounts),
                 Decimal("0"),
             )
             items_other_assets_total = sum(
-                (dec(item.get("amount")) for item in other_assets_items),
+                (round_down_euro(dec(item.get("amount"))) for item in other_assets_items),
                 Decimal("0"),
             )
             items_debt_total = sum(
-                (dec(item.get("amount")) for item in debt_items),
+                (round_up_euro(dec(item.get("amount"))) for item in debt_items),
                 Decimal("0"),
             )
 
             total_savings = (
                 accounts_savings_total
                 if savings_accounts
-                else dec(household_box3.get("savings"))
+                else round_down_euro(dec(household_box3.get("savings")))
             )
             total_investments = (
                 accounts_investments_total
                 if investment_accounts
-                else dec(household_box3.get("investments"))
+                else round_down_euro(dec(household_box3.get("investments")))
             )
             total_other_assets = (
                 items_other_assets_total
                 if other_assets_items
-                else dec(household_box3.get("other_assets"))
+                else round_down_euro(dec(household_box3.get("other_assets")))
             )
             total_debts = (
                 items_debt_total
                 if debt_items
-                else dec(household_box3.get("debts"))
+                else round_up_euro(dec(household_box3.get("debts")))
             )
 
-            household_dividend_withholding_total = dec(
+            household_dividend_withholding_total = round_up_euro(dec(
                 data.get(
                     "dividend_withholding_total",
                     household_box3.get("total_dividend_withholding", "0"),
                 )
-            )
+            ))
             if not household_dividend_withholding_total and investment_accounts:
                 household_dividend_withholding_total = sum(
-                    (dec(account.get("dividend_withholding")) for account in investment_accounts),
+                    (round_up_euro(dec(account.get("dividend_withholding"))) for account in investment_accounts),
                     Decimal("0"),
                 )
             total_prepaid_taxes += household_dividend_withholding_total
@@ -412,14 +421,14 @@ def calculate_tax():
         net_savings = total_savings * net_asset_factor
         net_non_savings = (total_investments + total_other_assets) * net_asset_factor
 
-        deemed_return_savings = net_savings * config.box3_savings_return_rate
-        deemed_return_non_savings = net_non_savings * config.box3_investment_return_rate
+        deemed_return_savings = round_down_euro(net_savings * config.box3_savings_return_rate)
+        deemed_return_non_savings = round_down_euro(net_non_savings * config.box3_investment_return_rate)
         deemed_return_total = deemed_return_savings + deemed_return_non_savings
 
         corrected_assets = max(Decimal("0"), total_net_assets - tax_free_assets)
         correction_factor = (corrected_assets / total_net_assets) if total_net_assets > 0 else Decimal("0")
-        box3_income = deemed_return_total * correction_factor
-        box3_tax = box3_income * config.box3_rate
+        box3_income = round_down_euro(deemed_return_total * correction_factor)
+        box3_tax = round_down_euro(box3_income * config.box3_rate)
 
         custom_pct_map = {
             member_id: dec(value)
@@ -449,31 +458,20 @@ def calculate_tax():
         verzamelinkomen = box1_taxable_income_total + box2_taxable_income_total + box3_income
 
         premium_basis = min(box1_taxable_income_total, PREMIUM_BASE_CAP)
-        premium_aow = premium_basis * PREMIUM_AOW_RATE
-        premium_anw = premium_basis * PREMIUM_ANW_RATE
-        premium_wlz = premium_basis * PREMIUM_WLZ_RATE
+        premium_aow = round_down_euro(premium_basis * PREMIUM_AOW_RATE)
+        premium_anw = round_down_euro(premium_basis * PREMIUM_ANW_RATE)
+        premium_wlz = round_down_euro(premium_basis * PREMIUM_WLZ_RATE)
         total_premiums = premium_aow + premium_anw + premium_wlz
 
         box1_box3_tax = box1_total + box3_tax
-        gross_income_tax = box1_box3_tax + total_premiums + box2_total
-        net_settlement = gross_income_tax - total_tax_credits - total_prepaid_taxes
+        gross_income_tax = round_down_euro(box1_box3_tax + total_premiums + box2_total)
+        net_settlement = round_down_euro(gross_income_tax - total_tax_credits - total_prepaid_taxes)
         total_gross_income = sum((dec(m["box1"]["gross_income"]) for m in member_results), Decimal("0"))
         effective_rate = (
             float((gross_income_tax / total_gross_income) * Decimal("100"))
             if total_gross_income > 0
             else 0.0
         )
-
-        filing_steps = [
-            "Persoonsgegevens controleren",
-            "Inkomsten invoeren",
-            "Woning en hypotheek invoeren",
-            "Vermogen invoeren",
-            "Aftrekposten invoeren",
-            "Partnerverdeling optimaliseren",
-            "Controle",
-            "Indienen",
-        ]
 
         return jsonify(
             {
@@ -539,7 +537,6 @@ def calculate_tax():
                     "effective_rate": round(effective_rate, 2),
                 },
                 "verzamelinkomen": float(verzamelinkomen),
-                "filing_steps": filing_steps,
             }
         )
     except Exception as exc:

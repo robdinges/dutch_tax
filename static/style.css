@@ -228,6 +228,26 @@ select:focus {
     grid-template-columns: 1.6fr 1fr 1fr auto;
 }
 
+.editor-row.savings-row {
+    grid-template-columns: minmax(14ch, 2fr) minmax(14ch, 1fr) minmax(12ch, 1fr) auto;
+}
+
+.editor-row.investments-row {
+    grid-template-columns: minmax(14ch, 1.9fr) minmax(14ch, 1fr) minmax(12ch, 1fr) minmax(14ch, 1fr) auto;
+}
+
+.editor-row input[type="number"] {
+    min-width: 14ch;
+    max-width: 16ch;
+}
+
+.editor-row input[data-kind="name"],
+.editor-row input[data-kind="income-source"],
+.editor-row input[data-kind="deduction-name"],
+.editor-row input[data-kind="credit-name"] {
+    max-width: 34ch;
+}
+
 .editor-row label {
     font-size: 0.78rem;
     color: #335364;
@@ -396,6 +416,11 @@ ol li {
 
     .editor-row.income-row,
     .editor-row.simple-row {
+        grid-template-columns: 1fr;
+    }
+
+    .editor-row.savings-row,
+    .editor-row.investments-row {
         grid-template-columns: 1fr;
     }
 

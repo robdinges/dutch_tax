@@ -136,7 +136,7 @@ const app = {
                         <input type="checkbox" id="has-own-home-${index}">
                     </label>
                     <label>WOZ-waarde
-                        <input type="number" min="0" step="0.01" id="woz-${index}" value="0">
+                        <input type="number" min="0" step="1" id="woz-${index}" value="0">
                     </label>
                     <label>Periode (0-1)
                         <input type="number" min="0" max="1" step="0.01" id="period-${index}" value="1">
@@ -162,13 +162,13 @@ const app = {
                         <input type="checkbox" id="has-ab-${index}">
                     </label>
                     <label>Dividend
-                        <input type="number" min="0" step="0.01" id="box2-dividend-${index}" value="0">
+                        <input type="number" min="0" step="1" id="box2-dividend-${index}" value="0">
                     </label>
                     <label>Verkoopopbrengst/winst aandelen
-                        <input type="number" min="0" step="0.01" id="box2-sale-${index}" value="0">
+                        <input type="number" min="0" step="1" id="box2-sale-${index}" value="0">
                     </label>
                     <label>Verkrijgingsprijs
-                        <input type="number" min="0" step="0.01" id="box2-acquisition-${index}" value="0">
+                        <input type="number" min="0" step="1" id="box2-acquisition-${index}" value="0">
                     </label>
                 </div>
             </section>
@@ -187,14 +187,14 @@ const app = {
     addSavingsRow(name = "", amount = 0, isGreen = false) {
         const rowId = this.makeRowId("savings-row");
         const node = document.createElement("div");
-        node.className = "editor-row account-row-green";
+        node.className = "editor-row savings-row";
         node.id = rowId;
         node.innerHTML = `
             <label>Spaarrekening
-                <input type="text" data-kind="name" value="${name}">
+                <input type="text" data-kind="name" maxlength="40" value="${name}">
             </label>
             <label>Saldo
-                <input type="number" min="0" step="0.01" data-kind="amount" value="${amount}">
+                <input type="number" min="0" step="1" data-kind="amount" value="${amount}">
             </label>
             <label class="inline-toggle">Groen sparen
                 <input type="checkbox" data-kind="is-green" ${isGreen ? "checked" : ""}>
@@ -208,22 +208,22 @@ const app = {
     addInvestmentRow(name = "", amount = 0, isGreen = false, dividendWithholding = 0) {
         const rowId = this.makeRowId("invest-row");
         const node = document.createElement("div");
-        node.className = "editor-row account-row-green";
+        node.className = "editor-row investments-row";
         node.id = rowId;
         node.innerHTML = `
             <label>Beleggingsrekening
-                <input type="text" data-kind="name" value="${name}">
+                <input type="text" data-kind="name" maxlength="40" value="${name}">
             </label>
             <label>Waarde
-                <input type="number" min="0" step="0.01" data-kind="amount" value="${amount}">
+                <input type="number" min="0" step="1" data-kind="amount" value="${amount}">
             </label>
             <label class="inline-toggle">Groene belegging
                 <input type="checkbox" data-kind="is-green" ${isGreen ? "checked" : ""}>
             </label>
-            <button type="button" class="btn ghost row-remove" onclick="app.removeRow('${rowId}')">Verwijder</button>
             <label>Dividendbelasting
-                <input type="number" min="0" step="0.01" data-kind="dividend-withholding" value="${dividendWithholding}">
+                <input type="number" min="0" step="1" data-kind="dividend-withholding" value="${dividendWithholding}">
             </label>
+            <button type="button" class="btn ghost row-remove" onclick="app.removeRow('${rowId}')">Verwijder</button>
         `;
         this.investmentsList.appendChild(node);
         this.attachBox3RowListeners(node);
@@ -236,10 +236,10 @@ const app = {
         node.id = rowId;
         node.innerHTML = `
             <label>Omschrijving
-                <input type="text" data-kind="name" value="${name}">
+                <input type="text" data-kind="name" maxlength="50" value="${name}">
             </label>
             <label>Bedrag
-                <input type="number" min="0" step="0.01" data-kind="amount" value="${amount}">
+                <input type="number" min="0" step="1" data-kind="amount" value="${amount}">
             </label>
             <button type="button" class="btn ghost row-remove" onclick="app.removeRow('${rowId}')">Verwijder</button>
         `;
@@ -254,10 +254,10 @@ const app = {
         node.id = rowId;
         node.innerHTML = `
             <label>Omschrijving
-                <input type="text" data-kind="name" value="${name}">
+                <input type="text" data-kind="name" maxlength="50" value="${name}">
             </label>
             <label>Bedrag
-                <input type="number" min="0" step="0.01" data-kind="amount" value="${amount}">
+                <input type="number" min="0" step="1" data-kind="amount" value="${amount}">
             </label>
             <button type="button" class="btn ghost row-remove" onclick="app.removeRow('${rowId}')">Verwijder</button>
         `;
@@ -313,13 +313,13 @@ const app = {
                 </select>
             </label>
             <label>Instantie/bedrijf/werkgever
-                <input type="text" data-kind="income-source" value="${source}">
+                <input type="text" data-kind="income-source" maxlength="60" value="${source}">
             </label>
             <label>Bedrag
-                <input type="number" min="0" step="0.01" data-kind="income-amount" value="${amount}">
+                <input type="number" min="0" step="1" data-kind="income-amount" value="${amount}">
             </label>
             <label>Loonheffing
-                <input type="number" min="0" step="0.01" data-kind="income-withholding" value="${wageWithholding}">
+                <input type="number" min="0" step="1" data-kind="income-withholding" value="${wageWithholding}">
             </label>
             <button type="button" class="btn ghost row-remove" onclick="app.removeRow('${rowId}')">Verwijder</button>
         `;
@@ -334,10 +334,10 @@ const app = {
         node.id = rowId;
         node.innerHTML = `
             <label>Omschrijving aftrekpost
-                <input type="text" data-kind="deduction-name" value="${name}">
+                <input type="text" data-kind="deduction-name" maxlength="60" value="${name}">
             </label>
             <label>Bedrag
-                <input type="number" min="0" step="0.01" data-kind="deduction-amount" value="${amount}">
+                <input type="number" min="0" step="1" data-kind="deduction-amount" value="${amount}">
             </label>
             <button type="button" class="btn ghost row-remove" onclick="app.removeRow('${rowId}')">Verwijder</button>
         `;
@@ -352,10 +352,10 @@ const app = {
         node.id = rowId;
         node.innerHTML = `
             <label>Naam heffingskorting
-                <input type="text" data-kind="credit-name" value="${name}">
+                <input type="text" data-kind="credit-name" maxlength="50" value="${name}">
             </label>
             <label>Bedrag
-                <input type="number" min="0" step="0.01" data-kind="credit-amount" value="${amount}">
+                <input type="number" min="0" step="1" data-kind="credit-amount" value="${amount}">
             </label>
             <button type="button" class="btn ghost row-remove" onclick="app.removeRow('${rowId}')">Verwijder</button>
         `;
@@ -699,14 +699,14 @@ const app = {
         document.getElementById("totalPrepaid").textContent = this.currency(settlement.total_prepaid_taxes);
         document.getElementById("netSettlement").textContent = this.currency(settlement.net_settlement);
 
-        const filingList = (result.filing_steps || []).map((step) => `<li>${step}</li>`).join("");
-        document.getElementById("filingSteps").innerHTML = filingList;
     },
 
     currency(value) {
         return new Intl.NumberFormat("nl-NL", {
             style: "currency",
             currency: "EUR",
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
         }).format(Number(value || 0));
     },
 };
