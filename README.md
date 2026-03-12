@@ -5,11 +5,10 @@ Deze applicatie rekent de particuliere Nederlandse inkomstenbelasting door op ba
 1. Gegevens verzamelen
 2. Fiscale partner bepalen
 3. Inkomsten indelen in boxen
-4. Box 1 berekenen
-5. Box 2 berekenen
-6. Box 3 berekenen (incl. schulden)
-7. Totale belasting + verrekening
-8. Eindresultaat tonen
+4. Gezamenlijke posten verdelen over partners
+5. Box 1/2/3 per partner volledig berekenen
+6. Totale belasting + verrekening per partner en huishouden
+7. Eindresultaat tonen
 
 De webapp bevat zowel de rekenengine als een overzichtelijke UI die exact op deze flow is ingericht.
 
@@ -19,9 +18,10 @@ De webapp bevat zowel de rekenengine als een overzichtelijke UI die exact op dez
 - Box 1 kortingen: meerdere losse heffingskortingen die de gebruiker zelf invult
 - Box 2: aanmerkelijk belang (>=5%), dividend/verkoop minus verkrijgingsprijs
 - Box 3: spaargeld, beleggingen, overige bezittingen, schulden, heffingsvrij vermogen
-- Partnerlogica: verdeling Box 3 met `EQUAL`, `PROPORTIONAL` of `CUSTOM`
+- Partnerlogica: expliciete verdeling van gezamenlijke posten met somcontrole
+- Gezamenlijke posten in verdeling: eigenwoningforfait, grondslag voordeel uit sparen en beleggen, vrijstelling groene beleggingen, ingehouden dividendbelasting
 - Premies volksverzekeringen: AOW (0% bij AOW-gerechtigd, anders 17.9%), Anw (0.1%), Wlz (9.65%)
-- Eindafrekening: belasting + premies, daarna kortingen, daarna voorheffingen
+- Eindafrekening: per partner volledig (belasting + premies - kortingen - voorheffingen) en daarna huishoudtotaal
 - JSON-opslag en herladen van invoer via `submissions/<household_id>.json`
 
 ## Starten
@@ -42,6 +42,7 @@ http://127.0.0.1:8000
 - `GET /api/income-types`
 - `GET /api/box1-deduction-types`
 - `GET /api/allocation-strategies`
+- `POST /api/joint-items-preview`
 - `POST /api/calculate`
 
 ## Belangrijkste invoer (POST /api/calculate)
@@ -51,10 +52,23 @@ http://127.0.0.1:8000
   "household_id": "HH2026-001",
   "fiscal_partner": true,
   "children_count": 1,
-  "allocation_strategy": "PROPORTIONAL",
-  "custom_allocation": {
-    "123456789": 70,
-    "987654321": 30
+  "joint_distribution": {
+    "eigenwoningforfait": {
+      "123456789": 1050,
+      "987654321": 1050
+    },
+    "grondslag_voordeel_sparen_beleggen": {
+      "123456789": 9000,
+      "987654321": 6000
+    },
+    "vrijstelling_groene_beleggingen": {
+      "123456789": 1000,
+      "987654321": 500
+    },
+    "ingehouden_dividendbelasting": {
+      "123456789": 240,
+      "987654321": 60
+    }
   },
   "members": [
     {
@@ -105,7 +119,8 @@ http://127.0.0.1:8000
 
 De response bevat:
 
-- `members[]` met detail per persoon voor Box 1, Box 2, Box 3 en voorheffingen
+- `members[]` met detail per persoon voor Box 1, Box 2, Box 3, premies, voorheffingen en partner-eindafrekening
+- `joint_distribution` en `joint_distribution_totals`
 - `box1`, `box2`, `box3` huishoudtotalen
 - `settlement` met eindafrekening (`TE_BETALEN` of `TERUGGAAF`)
 - `verzamelinkomen`

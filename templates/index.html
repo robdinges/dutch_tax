@@ -30,6 +30,12 @@
                 <section class="flow-step" data-step="1">
                     <h3>1. Verzamel gegevens</h3>
                     <div class="grid two">
+                        <label>Laad opgeslagen JSON
+                            <input type="file" id="loadJsonFile" accept="application/json,.json">
+                        </label>
+                        <div class="button-stack">
+                            <button type="button" id="loadJsonBtn" class="btn ghost">Laad JSON in formulier</button>
+                        </div>
                         <label>Huishouden-ID
                             <input type="text" id="householdId" value="HH2026-001">
                         </label>
@@ -46,13 +52,6 @@
                         </label>
                         <label>Aantal kinderen
                             <input type="number" id="childrenCount" min="0" value="0">
-                        </label>
-                        <label>Box 3 verdeling
-                            <select id="allocationStrategy">
-                                <option value="PROPORTIONAL" selected>Proportioneel op netto vermogen</option>
-                                <option value="EQUAL">Gelijk verdeeld</option>
-                                <option value="CUSTOM">Custom percentage</option>
-                            </select>
                         </label>
                     </div>
                 </section>
@@ -127,18 +126,24 @@
                 </section>
 
                 <section class="flow-step" data-step="4">
-                    <h3>4. Heffingskortingen (na Box 3)</h3>
-                    <div id="creditsContainer"></div>
+                    <h3>4. Verdeel gezamenlijke posten</h3>
+                    <p class="step-note">Verdeel de gezamenlijke posten over de fiscale partners. Per regel moet de som van de partnerbedragen gelijk zijn aan het totaal.</p>
+                    <div id="jointDistributionContainer"></div>
+                    <div class="button-stack">
+                        <button type="button" id="confirmDistributionBtn" class="btn ghost">Bevestig verdeling en ga door</button>
+                        <small id="distributionStatus" class="step-status">Nog niet bevestigd</small>
+                    </div>
                 </section>
 
                 <section class="flow-step" data-step="5">
-                    <h3>5. Controle en berekenen</h3>
+                    <h3>5. Heffingskortingen (na verdeling)</h3>
+                    <div id="creditsContainer"></div>
+                </section>
+
+                <section class="flow-step" data-step="6">
+                    <h3>6. Controle en berekenen</h3>
                     <div class="grid two">
-                        <label>Laad opgeslagen JSON
-                            <input type="file" id="loadJsonFile" accept="application/json,.json">
-                        </label>
                         <div class="button-stack">
-                            <button type="button" id="loadJsonBtn" class="btn ghost">Laad JSON in formulier</button>
                             <button type="submit" class="btn primary">Bereken volledige aangifte</button>
                         </div>
                     </div>
@@ -200,17 +205,9 @@
                 </section>
 
                 <section class="result-block">
-                    <h3>Totale belastingberekening en verrekening</h3>
-                    <div class="totals-row"><span>Belasting Box 1 + Box 3</span><strong id="box1Box3Tax">EUR 0</strong></div>
-                    <div class="totals-row"><span>Premie AOW</span><strong id="premiumAow">EUR 0</strong></div>
-                    <div class="totals-row"><span>Premie Anw</span><strong id="premiumAnw">EUR 0</strong></div>
-                    <div class="totals-row"><span>Premie Wlz</span><strong id="premiumWlz">EUR 0</strong></div>
-                    <div class="totals-row"><span>Totaal premies volksverzekeringen</span><strong id="premiumTotal">EUR 0</strong></div>
-                    <div class="totals-row"><span>Belasting Box 2</span><strong id="box2TaxInSettlement">EUR 0</strong></div>
-                    <div class="totals-row"><span>Subtotaal belasting + premies</span><strong id="grossIncomeTax">EUR 0</strong></div>
-                    <div class="totals-row"><span>Heffingskortingen (som van losse posten)</span><strong id="totalCredits">EUR 0</strong></div>
-                    <div class="totals-row"><span>Voorheffingen</span><strong id="totalPrepaid">EUR 0</strong></div>
-                    <div class="totals-row final"><span>Eindafrekening</span><strong id="netSettlement">EUR 0</strong></div>
+                    <h3>Samenvatting partners</h3>
+                    <div id="summaryPartners"></div>
+                    <div class="totals-row final"><span>Telling belasting partner 1 + 2</span><strong id="summaryCombinedTax">EUR 0</strong></div>
                 </section>
 
             </div>

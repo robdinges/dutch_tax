@@ -607,6 +607,10 @@ class TaxYearConfig:
     box3_investment_return_rate: Decimal = Decimal("0.06")
     box3_tax_free_assets_single: Decimal = Decimal("57000")
     box3_tax_free_assets_partner: Decimal = Decimal("114000")
+    premium_aow_rate: Decimal = Decimal("0.1790")
+    premium_anw_rate: Decimal = Decimal("0.0010")
+    premium_wlz_rate: Decimal = Decimal("0.0965")
+    premium_income_cap: Decimal = Decimal("38441")
     description: str = ""
 
 

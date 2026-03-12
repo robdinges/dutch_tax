@@ -1,8 +1,19 @@
 const app = {
     API_CALCULATE: "/api/calculate",
+    API_JOINT_PREVIEW: "/api/joint-items-preview",
     currentMemberCount: 2,
     BOX3_SAVINGS_RATE: 0.0137,
     BOX3_INVESTMENTS_RATE: 0.0588,
+    JOINT_ITEMS: [
+        { key: "eigenwoningforfait", label: "Eigenwoningforfait (bijtelling Box 1)" },
+        { key: "aftrek_geen_of_kleine_eigenwoningschuld", label: "Aftrek geen of kleine eigenwoningschuld (76,667%)" },
+        { key: "grondslag_voordeel_sparen_beleggen", label: "Grondslag voordeel uit sparen en beleggen" },
+        { key: "vrijstelling_groene_beleggingen", label: "Vrijstelling groene beleggingen" },
+        { key: "ingehouden_dividendbelasting", label: "Ingehouden dividendbelasting" },
+    ],
+    latestJointPreview: null,
+    distributionConfirmed: false,
+    distributionRefreshTimer: null,
 
     init() {
         this.cacheElements();
@@ -10,6 +21,7 @@ const app = {
         this.renderMembers(this.currentMemberCount);
         this.renderCreditsPerPerson(this.currentMemberCount);
         this.initBox3HouseholdEditors();
+        this.scheduleJointDistributionRefresh();
     },
 
     cacheElements() {
@@ -17,11 +29,13 @@ const app = {
         this.memberCount = document.getElementById("memberCount");
         this.membersContainer = document.getElementById("membersContainer");
         this.creditsContainer = document.getElementById("creditsContainer");
-        this.allocationStrategy = document.getElementById("allocationStrategy");
         this.resultsSection = document.getElementById("resultsSection");
         this.emptyState = document.getElementById("emptyState");
         this.loadJsonFile = document.getElementById("loadJsonFile");
         this.loadJsonBtn = document.getElementById("loadJsonBtn");
+        this.jointDistributionContainer = document.getElementById("jointDistributionContainer");
+        this.confirmDistributionBtn = document.getElementById("confirmDistributionBtn");
+        this.distributionStatus = document.getElementById("distributionStatus");
 
         this.savingsList = document.getElementById("savings-list");
         this.investmentsList = document.getElementById("investments-list");
@@ -38,6 +52,8 @@ const app = {
             this.currentMemberCount = Number(event.target.value);
             this.renderMembers(this.currentMemberCount);
             this.renderCreditsPerPerson(this.currentMemberCount);
+            this.markDistributionStale();
+            this.scheduleJointDistributionRefresh();
         });
 
         this.form.addEventListener("submit", async (event) => {
@@ -47,6 +63,19 @@ const app = {
 
         this.loadJsonBtn.addEventListener("click", () => {
             this.loadJsonIntoForm();
+        });
+
+        this.confirmDistributionBtn.addEventListener("click", async () => {
+            await this.confirmJointDistribution();
+        });
+
+        this.form.addEventListener("input", (event) => {
+            if (event.target?.dataset?.jointDistributionInput === "1") {
+                this.updateDistributionValidationStatus();
+                return;
+            }
+            this.markDistributionStale();
+            this.scheduleJointDistributionRefresh();
         });
 
         this.addSavingsBtn.addEventListener("click", () => this.addSavingsRow());
@@ -102,9 +131,6 @@ const app = {
         node.innerHTML = `
             <header>
                 <h4>Persoon ${index}</h4>
-                <label class="inline-toggle">Custom Box3 %
-                    <input type="number" min="0" max="100" step="0.1" id="custom-allocation-${index}" value="0">
-                </label>
             </header>
 
             <div class="grid two">
@@ -373,6 +399,213 @@ const app = {
         return Number(value || 0);
     },
 
+    markDistributionStale() {
+        this.distributionConfirmed = false;
+        if (this.distributionStatus) {
+            this.distributionStatus.textContent = "Verdeling moet opnieuw worden bevestigd";
+            this.distributionStatus.classList.remove("ok");
+            this.distributionStatus.classList.add("warn");
+        }
+    },
+
+    scheduleJointDistributionRefresh() {
+        if (this.distributionRefreshTimer) {
+            clearTimeout(this.distributionRefreshTimer);
+        }
+        this.distributionRefreshTimer = setTimeout(() => {
+            this.refreshJointDistributionPreview();
+        }, 250);
+    },
+
+    memberDirectory() {
+        const directory = [];
+        for (let i = 1; i <= this.currentMemberCount; i += 1) {
+            const memberId = document.getElementById(`bsn-${i}`).value || `member_${i}`;
+            const fullName = document.getElementById(`full-name-${i}`).value || `Persoon ${i}`;
+            directory.push({ memberId, fullName });
+        }
+        return directory;
+    },
+
+    collectJointDistribution() {
+        const distribution = {};
+        this.JOINT_ITEMS.forEach((item) => {
+            distribution[item.key] = {};
+        });
+
+        const inputs = this.jointDistributionContainer.querySelectorAll("[data-joint-distribution-input='1']");
+        inputs.forEach((input) => {
+            const itemKey = input.dataset.itemKey;
+            const memberId = input.dataset.memberId;
+            if (!itemKey || !memberId || !distribution[itemKey]) {
+                return;
+            }
+            distribution[itemKey][memberId] = Number(input.value || 0);
+        });
+
+        return distribution;
+    },
+
+    currentPreviewPayload() {
+        const payload = this.collectPayload();
+        delete payload.joint_distribution;
+        return payload;
+    },
+
+    async refreshJointDistributionPreview(prefillDistribution = null) {
+        const payload = this.currentPreviewPayload();
+        const response = await fetch(this.API_JOINT_PREVIEW, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+        const result = await response.json();
+        if (!response.ok || result.error) {
+            this.distributionStatus.textContent = result.error || "Kon gezamenlijke posten niet ophalen";
+            this.distributionStatus.classList.remove("ok");
+            this.distributionStatus.classList.add("warn");
+            return;
+        }
+
+        this.latestJointPreview = result;
+        this.renderJointDistribution(result, prefillDistribution);
+        this.updateDistributionValidationStatus();
+    },
+
+    renderJointDistribution(preview, prefillDistribution = null) {
+        const memberIds = preview.member_ids || [];
+        const totals = preview.joint_distribution_totals || {};
+        const memberLabels = preview.member_labels || {};
+        const existing = this.collectJointDistribution();
+        const source = prefillDistribution || existing;
+
+        const memberHeader = memberIds.map((memberId) => `<th>${memberLabels[memberId] || memberId}</th>`).join("");
+        const rows = this.JOINT_ITEMS.map((item) => {
+            const total = Number(totals[item.key] || 0);
+            const currentValues = memberIds.map((memberId) => {
+                const explicit = source?.[item.key]?.[memberId];
+                if (explicit !== undefined && explicit !== null) {
+                    return Number(explicit);
+                }
+                return Number((total / Math.max(memberIds.length, 1)).toFixed(2));
+            });
+
+            const allocatedSoFar = currentValues.slice(0, -1).reduce((sum, value) => sum + Number(value || 0), 0);
+            if (memberIds.length > 1 && (source?.[item.key]?.[memberIds[memberIds.length - 1]] === undefined)) {
+                currentValues[currentValues.length - 1] = Number((total - allocatedSoFar).toFixed(2));
+            }
+
+            const memberCells = memberIds.map((memberId, index) => {
+                const value = Number(currentValues[index] || 0);
+                return `
+                    <td>
+                        <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value="${value}"
+                            data-joint-distribution-input="1"
+                            data-item-key="${item.key}"
+                            data-member-id="${memberId}"
+                        >
+                    </td>
+                `;
+            }).join("");
+
+            return `
+                <tr data-item-row="${item.key}">
+                    <td>${item.label}</td>
+                    <td class="mono">${this.currency(total)}</td>
+                    ${memberCells}
+                    <td class="distribution-check" data-check-key="${item.key}">-</td>
+                </tr>
+            `;
+        }).join("");
+
+        this.jointDistributionContainer.innerHTML = `
+            <div class="distribution-wrap">
+                <table class="distribution-table">
+                    <thead>
+                        <tr>
+                            <th>Post</th>
+                            <th>Totaal</th>
+                            ${memberHeader}
+                            <th>Controle</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    },
+
+    validateJointDistributionTotals() {
+        const totals = this.latestJointPreview?.joint_distribution_totals || {};
+        const distribution = this.collectJointDistribution();
+        const memberIds = this.latestJointPreview?.member_ids || [];
+        const rowStates = {};
+        let isValid = true;
+
+        this.JOINT_ITEMS.forEach((item) => {
+            const total = Number(totals[item.key] || 0);
+            const sum = memberIds.reduce((acc, memberId) => {
+                return acc + Number(distribution?.[item.key]?.[memberId] || 0);
+            }, 0);
+            const diff = Math.abs(total - sum);
+            const rowValid = diff <= 0.01;
+            rowStates[item.key] = { total, sum, rowValid };
+            if (!rowValid) {
+                isValid = false;
+            }
+        });
+
+        return { isValid, rowStates };
+    },
+
+    updateDistributionValidationStatus() {
+        const validation = this.validateJointDistributionTotals();
+        Object.entries(validation.rowStates).forEach(([itemKey, state]) => {
+            const cell = this.jointDistributionContainer.querySelector(`[data-check-key='${itemKey}']`);
+            if (!cell) {
+                return;
+            }
+            if (state.rowValid) {
+                cell.textContent = "OK";
+                cell.classList.remove("bad");
+                cell.classList.add("good");
+            } else {
+                cell.textContent = `${this.currency(state.sum)} i.p.v. ${this.currency(state.total)}`;
+                cell.classList.remove("good");
+                cell.classList.add("bad");
+            }
+        });
+        return validation.isValid;
+    },
+
+    async confirmJointDistribution() {
+        await this.refreshJointDistributionPreview();
+        const isValid = this.updateDistributionValidationStatus();
+        if (!isValid) {
+            this.distributionConfirmed = false;
+            this.distributionStatus.textContent = "Verdeling ongeldig: controleer de regels met afwijking.";
+            this.distributionStatus.classList.remove("ok");
+            this.distributionStatus.classList.add("warn");
+            return;
+        }
+
+        this.distributionConfirmed = true;
+        this.distributionStatus.textContent = "Verdeling bevestigd. Je kunt doorgaan naar de volgende stap.";
+        this.distributionStatus.classList.remove("warn");
+        this.distributionStatus.classList.add("ok");
+
+        const nextStep = this.creditsContainer?.closest("section");
+        if (nextStep) {
+            nextStep.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+    },
+
     collectBox3Household() {
         const collect = (selector) => {
             const rows = document.querySelectorAll(selector);
@@ -427,7 +660,6 @@ const app = {
 
     collectPayload() {
         const members = [];
-        const customAllocation = {};
 
         for (let i = 1; i <= this.currentMemberCount; i += 1) {
             const bsn = document.getElementById(`bsn-${i}`).value || `member_${i}`;
@@ -468,11 +700,6 @@ const app = {
                 }
             });
 
-            const customPercent = this.readNumber(`custom-allocation-${i}`);
-            if (customPercent > 0) {
-                customAllocation[memberId] = customPercent;
-            }
-
             members.push({
                 member_id: memberId,
                 full_name: document.getElementById(`full-name-${i}`).value || `Persoon ${i}`,
@@ -506,15 +733,24 @@ const app = {
                     period_fraction: this.readNumber("period-household"),
                 },
             },
-            allocation_strategy: this.allocationStrategy.value,
-            custom_allocation: customAllocation,
             dividend_withholding_total: box3Household.total_dividend_withholding,
             box3_household: box3Household,
+            joint_distribution: this.collectJointDistribution(),
             members,
         };
     },
 
     async calculate() {
+        if (!this.distributionConfirmed) {
+            alert("Bevestig eerst de verdeling van gezamenlijke posten.");
+            return;
+        }
+
+        if (!this.validateJointDistributionTotals().isValid) {
+            alert("De verdeling is ongeldig. Zorg dat elke regel optelt tot het totaal.");
+            return;
+        }
+
         const payload = this.collectPayload();
         const response = await fetch(this.API_CALCULATE, {
             method: "POST",
@@ -538,7 +774,7 @@ const app = {
         }
 
         const file = this.loadJsonFile.files[0];
-        file.text().then((raw) => {
+        file.text().then(async (raw) => {
             const parsed = JSON.parse(raw);
             const payload = parsed.data || parsed;
             const members = payload.members || [];
@@ -546,7 +782,6 @@ const app = {
             document.getElementById("householdId").value = payload.household_id || "WEB_001";
             document.getElementById("fiscalPartner").checked = Boolean(payload.fiscal_partner);
             document.getElementById("childrenCount").value = payload.children_count || 0;
-            document.getElementById("allocationStrategy").value = payload.allocation_strategy || "PROPORTIONAL";
 
             this.currentMemberCount = Math.max(1, members.length || 1);
             this.memberCount.value = String(this.currentMemberCount);
@@ -608,9 +843,6 @@ const app = {
                 document.getElementById(`box2-dividend-${i}`).value = box2.dividend_income || 0;
                 document.getElementById(`box2-sale-${i}`).value = box2.sale_gain || 0;
                 document.getElementById(`box2-acquisition-${i}`).value = box2.acquisition_price || 0;
-
-                const customPct = payload.custom_allocation?.[member.member_id || member.bsn];
-                document.getElementById(`custom-allocation-${i}`).value = customPct || 0;
             });
 
             const box3 = payload.box3_household || {};
@@ -645,6 +877,8 @@ const app = {
             }
 
             this.updateBox3Subtotals();
+            this.markDistributionStale();
+            await this.refreshJointDistributionPreview(payload.joint_distribution || {});
         }).catch((error) => {
             alert(`Kon JSON niet laden: ${error.message}`);
         });
@@ -675,8 +909,19 @@ const app = {
                 <article class="member-result">
                     <h4>${member.full_name}</h4>
                     <div class="totals-row"><span>Belastbaar inkomen Box 1</span><strong>${this.currency(member.box1.taxable_income)}</strong></div>
+                    <div class="totals-row"><span>Eigenwoningforfait (bijtelling)</span><strong>${this.currency(member.box1.eigenwoningforfait)}</strong></div>
+                    <div class="totals-row"><span>Aftrek kleine/geen eigenwoningschuld</span><strong>${this.currency(member.box1.aftrek_geen_of_kleine_eigenwoningschuld)}</strong></div>
                     <div class="totals-row"><span>Belasting Box 1</span><strong>${this.currency(member.box1.tax)}</strong></div>
+                    <div class="totals-row"><span>Belastbaar inkomen Box 2</span><strong>${this.currency(member.box2.taxable_income)}</strong></div>
+                    <div class="totals-row"><span>Belasting Box 2</span><strong>${this.currency(member.box2.tax)}</strong></div>
+                    <div class="totals-row"><span>Grondslag Box 3 (toegedeeld)</span><strong>${this.currency(member.box3.grondslag_voordeel_sparen_beleggen)}</strong></div>
+                    <div class="totals-row"><span>Vrijstelling groene beleggingen</span><strong>${this.currency(member.box3.vrijstelling_groene_beleggingen)}</strong></div>
+                    <div class="totals-row"><span>Belastbaar inkomen Box 3 (toegedeeld)</span><strong>${this.currency(member.box3.taxable_income)}</strong></div>
+                    <div class="totals-row"><span>Belasting Box 3</span><strong>${this.currency(member.box3.tax)}</strong></div>
+                    <div class="totals-row"><span>Premies totaal</span><strong>${this.currency(member.premiums.total)}</strong></div>
                     <div class="totals-row"><span>Heffingskortingen totaal</span><strong>${this.currency(member.box1.credits.total)}</strong></div>
+                    <div class="totals-row"><span>Voorheffingen totaal</span><strong>${this.currency(member.prepayments.total)}</strong></div>
+                    <div class="totals-row final"><span>Eindafrekening partner</span><strong>${this.currency(member.settlement.net_settlement)}</strong></div>
                     <ul>${brackets}</ul>
                 </article>
             `;
@@ -695,20 +940,30 @@ const app = {
         document.getElementById("box3Tax").textContent = this.currency(box3.total_tax);
 
         const allocationRows = Object.entries(box3.allocation || {}).map(([memberId, amount]) => {
-            return `<div class="totals-row"><span>Box3 toerekening ${memberId}</span><strong>${this.currency(amount)}</strong></div>`;
+            return `<div class="totals-row"><span>Toegedeelde grondslag Box 3 ${memberId}</span><strong>${this.currency(amount)}</strong></div>`;
         }).join("");
         document.getElementById("box3Allocation").innerHTML = allocationRows;
 
-        document.getElementById("box1Box3Tax").textContent = this.currency(settlement.box1_box3_tax);
-        document.getElementById("premiumAow").textContent = this.currency(settlement.premiums.aow);
-        document.getElementById("premiumAnw").textContent = this.currency(settlement.premiums.anw);
-        document.getElementById("premiumWlz").textContent = this.currency(settlement.premiums.wlz);
-        document.getElementById("premiumTotal").textContent = this.currency(settlement.premiums.total);
-        document.getElementById("box2TaxInSettlement").textContent = this.currency(settlement.box2_tax);
-        document.getElementById("grossIncomeTax").textContent = this.currency(settlement.gross_income_tax);
-        document.getElementById("totalCredits").textContent = this.currency(settlement.total_tax_credits);
-        document.getElementById("totalPrepaid").textContent = this.currency(settlement.total_prepaid_taxes);
-        document.getElementById("netSettlement").textContent = this.currency(settlement.net_settlement);
+        const summaryMembers = result.members.slice(0, 2);
+        const summaryHtml = summaryMembers.map((member, index) => {
+            return `
+                <article class="member-result">
+                    <h4>Partner ${index + 1}: ${member.full_name}</h4>
+                    <div class="totals-row"><span>Belasting Box 1</span><strong>${this.currency(member.box1.tax)}</strong></div>
+                    <div class="totals-row"><span>Belasting Box 2</span><strong>${this.currency(member.box2.tax)}</strong></div>
+                    <div class="totals-row"><span>Box 3 grondslag (toegedeeld)</span><strong>${this.currency(member.box3.grondslag_voordeel_sparen_beleggen)}</strong></div>
+                    <div class="totals-row"><span>Belastbaar inkomen Box 3 (toegedeeld)</span><strong>${this.currency(member.box3.taxable_income)}</strong></div>
+                    <div class="totals-row"><span>Tarief Box 3</span><strong>${box3.tax_rate.toFixed(2)}%</strong></div>
+                    <div class="totals-row"><span>Belasting Box 3 (${this.currency(member.box3.taxable_income)} x ${box3.tax_rate.toFixed(2)}%)</span><strong>${this.currency(member.box3.tax)}</strong></div>
+                </article>
+            `;
+        }).join("");
+        document.getElementById("summaryPartners").innerHTML = summaryHtml;
+
+        const combinedTax = summaryMembers.reduce((sum, member) => {
+            return sum + Number(member.box1.tax || 0) + Number(member.box2.tax || 0) + Number(member.box3.tax || 0);
+        }, 0);
+        document.getElementById("summaryCombinedTax").textContent = this.currency(combinedTax);
 
     },
 

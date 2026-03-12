@@ -15,7 +15,6 @@ De UI is opgebouwd als workflow met twee kolommen.
 - Aantal personen
 - Fiscaal partnerschap
 - Aantal kinderen
-- Box 3 verdelingsmethode
 
 1. `Persoonsdossiers`
 
@@ -39,6 +38,18 @@ Per persoon:
 - Vermogen en schulden op huishoudniveau
 - Schulden worden als negatieve inkomenspost meegenomen in Box 3 inkomen
 
+1. `Verdeel gezamenlijke posten`
+
+- Getoonde totalen voor:
+	- eigenwoningforfait (bijtelling Box 1)
+	- aftrek geen of kleine eigenwoningschuld (76,667% van eigenwoningforfait)
+	- grondslag voordeel uit sparen en beleggen
+	- vrijstelling groene beleggingen
+	- ingehouden dividendbelasting
+- Per partner invoervelden per post
+- Validatie per regel: som partnerbedragen moet gelijk zijn aan totaal
+- Knop om verdeling te bevestigen en door te gaan
+
 1. `Controle en berekenen`
 
 - JSON importeren
@@ -52,7 +63,8 @@ Resultaten worden opgebouwd in fiscale volgorde.
 - Box 1: detail per persoon + schijven
 - Box 2: totaal belastbaar inkomen en belasting
 - Box 3: netto vermogen, heffingsvrij vermogen, correctie en toerekening
-- Verrekening: bruto belasting, premies AOW/Anw/Wlz, heffingskortingen, voorheffingen, eindafrekening
+- Per partner: volledige afrekening met Box 1, Box 2, Box 3, premies, heffingskortingen en voorheffingen
+- Verrekening huishouden: totaal van beide partneruitkomsten
 
 ## UX-principes
 

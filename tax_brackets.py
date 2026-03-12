@@ -37,27 +37,21 @@ def create_2025_brackets() -> list[TaxBracket]:
     return [
         TaxBracket(
             lower_bound=Decimal(0),
-            upper_bound=Decimal(37_895),
+            upper_bound=Decimal(38_441),
             rate=Decimal("0.0817"),
             description="First bracket (8.17%)"
         ),
         TaxBracket(
-            lower_bound=Decimal(37_895),
-            upper_bound=Decimal(75_790),
-            rate=Decimal("0.2843"),
-            description="Second bracket (28.43%)"
+            lower_bound=Decimal(38_441),
+            upper_bound=Decimal(76_817),
+            rate=Decimal("0.3748"),
+            description="Second bracket (37.48%)"
         ),
         TaxBracket(
-            lower_bound=Decimal(75_790),
-            upper_bound=Decimal(1_011_724),
-            rate=Decimal("0.3705"),
-            description="Third bracket (37.05%)"
-        ),
-        TaxBracket(
-            lower_bound=Decimal(1_011_724),
+            lower_bound=Decimal(76_817),
             upper_bound=None,
-            rate=Decimal("0.4949"),
-            description="Fourth bracket (49.49%)"
+            rate=Decimal("0.4950"),
+            description="Third bracket (49.50%)"
         ),
     ]
 
@@ -70,6 +64,10 @@ TAX_CONFIG_2025 = TaxYearConfig(
     box3_investment_return_rate=Decimal("0.0588"),
     box3_tax_free_assets_single=Decimal("57684"),
     box3_tax_free_assets_partner=Decimal("115368"),
+    premium_aow_rate=Decimal("0.1790"),
+    premium_anw_rate=Decimal("0.0010"),
+    premium_wlz_rate=Decimal("0.0965"),
+    premium_income_cap=Decimal("38441"),
     general_tax_credit=Decimal(2_917),  # 2025 general tax credit
     description="Dutch tax year 2025 - Realistic rates"
 )
@@ -117,6 +115,7 @@ TAX_CONFIG_2024 = TaxYearConfig(
     year=2024,
     box1_brackets=create_2024_brackets(),
     box3_rate=Decimal("0.3600"),  # 36% wealth tax on assets
+    premium_income_cap=Decimal("37150"),
     general_tax_credit=Decimal(2_813),  # 2024 general tax credit
     description="Dutch tax year 2024 - Realistic rates"
 )
@@ -164,6 +163,7 @@ TAX_CONFIG_2023 = TaxYearConfig(
     year=2023,
     box1_brackets=create_2023_brackets(),
     box3_rate=Decimal("0.3600"),  # 36% wealth tax on assets
+    premium_income_cap=Decimal("36092"),
     general_tax_credit=Decimal(2_713),  # 2023 general tax credit
     description="Dutch tax year 2023 - Realistic rates"
 )

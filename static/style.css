@@ -94,6 +94,12 @@ h1 {
     color: var(--muted);
 }
 
+.step-note {
+    margin: 0 0 0.6rem;
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
 .flow-step {
     border-top: 2px solid #e5ecef;
     padding-top: 0.9rem;
@@ -262,6 +268,60 @@ select:focus {
 .row-remove {
     padding: 0.45rem 0.62rem;
     white-space: nowrap;
+}
+
+.distribution-wrap {
+    overflow-x: auto;
+    border: 1px solid #d7e2e8;
+    border-radius: 10px;
+    background: #f9fcfd;
+}
+
+.distribution-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 720px;
+}
+
+.distribution-table th,
+.distribution-table td {
+    border-bottom: 1px solid #dbe5ea;
+    padding: 0.45rem;
+    text-align: left;
+    font-size: 0.86rem;
+}
+
+.distribution-table th {
+    font-size: 0.78rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.distribution-table .mono {
+    font-family: "IBM Plex Mono", monospace;
+}
+
+.distribution-check.good {
+    color: #0d7b4e;
+    font-weight: 700;
+}
+
+.distribution-check.bad {
+    color: #a63a2a;
+    font-weight: 700;
+}
+
+.step-status {
+    color: var(--muted);
+}
+
+.step-status.ok {
+    color: #0d7b4e;
+}
+
+.step-status.warn {
+    color: #a63a2a;
 }
 
 .btn {
