@@ -1,157 +1,219 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="nl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dutch Tax Calculator - .NET Web GUI</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="/style.css">
+    <title>Inkomstenbelasting Procesflow</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <div class="app-container">
-        <header class="header-section">
-            <div class="container-lg">
-                <div class="header-content">
-                    <h1>🇳🇱 Dutch Tax Calculator 2025 (.NET)</h1>
-                    <p class="text-muted">Calculate your Box1 (income) and Box3 (wealth) taxes</p>
-                </div>
+    <div class="bg-grid"></div>
+    <header class="hero">
+        <div class="hero-inner">
+            <p class="tag">Nederlandse inkomstenbelasting 2025</p>
+            <h1>Van brongegevens naar complete aangifteflow</h1>
+            <p class="subtitle">Bereken Box 1, Box 2 en Box 3 in de logische volgorde van de aangifte, inclusief partneroptimalisatie en eindafrekening.</p>
+        </div>
+    </header>
+
+    <main class="layout">
+        <section class="panel input-panel">
+            <div class="panel-head">
+                <h2>Invoer</h2>
+                <p>Volg de stappen van de procesflow. Alles wordt automatisch samengebracht in de berekening.</p>
             </div>
-        </header>
 
-        <main class="container-lg py-5">
-            <div class="row">
-                <div class="col-lg-6">
-                    <div class="form-section">
-                        <h2 class="section-title">📋 Tax Information</h2>
-                        <form id="taxForm">
-                            <div class="mb-3">
-                                <label for="householdId" class="form-label">Household ID</label>
-                                <input type="text" class="form-control" id="householdId" placeholder="e.g., HH2025001" value="HH2025001">
-                                <small class="text-muted">Optional identifier for your household</small>
-                            </div>
-
-                            <div class="mb-3">
-                                <label for="memberCount" class="form-label">Number of Household Members</label>
-                                <select class="form-select" id="memberCount">
-                                    <option value="1" selected>1 Person</option>
-                                    <option value="2">2 People (Couple/Family)</option>
-                                    <option value="3">3 People</option>
-                                    <option value="4">4 People</option>
-                                </select>
-                            </div>
-
-                            <div id="membersContainer"></div>
-
-                            <div class="card mt-4 allocation-card">
-                                <div class="card-header">
-                                    <h5 class="mb-0">💰 Box3 Allocation Strategy</h5>
-                                </div>
-                                <div class="card-body">
-                                    <div class="mb-3">
-                                        <label for="allocationStrategy" class="form-label">Allocation Method</label>
-                                        <select class="form-select" id="allocationStrategy">
-                                            <option value="EQUAL" selected>Equal (50-50 split)</option>
-                                            <option value="PROPORTIONAL">Proportional (by income)</option>
-                                            <option value="CUSTOM">Custom Percentages</option>
-                                        </select>
-                                        <small class="text-muted">How household assets are allocated for Box3 tax</small>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="d-grid gap-2 mt-4">
-                                <button type="submit" class="btn btn-primary btn-lg">
-                                    <span class="spinner-border spinner-border-sm d-none me-2" id="loadingSpinner" role="status" aria-hidden="true"></span>
-                                    Calculate Taxes
-                                </button>
-                            </div>
-                        </form>
+            <form id="taxForm">
+                <section class="flow-step" data-step="1">
+                    <h3>1. Verzamel gegevens</h3>
+                    <div class="grid two">
+                        <label>Laad opgeslagen JSON
+                            <input type="file" id="loadJsonFile" accept="application/json,.json">
+                        </label>
+                        <div class="button-stack">
+                            <button type="button" id="loadJsonBtn" class="btn ghost">Laad JSON in formulier</button>
+                        </div>
+                        <label>Huishouden-ID
+                            <input type="text" id="householdId" value="HH2026-001">
+                        </label>
+                        <label>Aantal personen
+                            <select id="memberCount">
+                                <option value="1">1</option>
+                                <option value="2" selected>2</option>
+                                <option value="3">3</option>
+                                <option value="4">4</option>
+                            </select>
+                        </label>
+                        <label class="inline-toggle">Fiscaal partnerschap
+                            <input type="checkbox" id="fiscalPartner" checked>
+                        </label>
+                        <label>Aantal kinderen
+                            <input type="number" id="childrenCount" min="0" value="0">
+                        </label>
                     </div>
-                </div>
+                </section>
 
-                <div class="col-lg-6">
-                    <div id="resultsSection" style="display: none;">
-                        <div class="results-section">
-                            <h2 class="section-title">📊 Tax Calculation Results</h2>
+                <section class="flow-step" data-step="2">
+                    <h3>2. Persoonsdossiers</h3>
+                    <div id="membersContainer"></div>
+                </section>
 
-                            <div class="summary-cards">
-                                <div class="summary-card total-tax">
-                                    <div class="card-label">Total Tax Due</div>
-                                    <div class="card-amount" id="totalTaxAmount">€0.00</div>
-                                </div>
-                                <div class="summary-card effective-rate">
-                                    <div class="card-label">Effective Rate</div>
-                                    <div class="card-amount" id="effectiveRateAmount">0.00%</div>
-                                </div>
-                            </div>
-
-                            <div class="card mt-4">
-                                <div class="card-header">
-                                    <h5 class="mb-0">📋 Box1 - Income Tax</h5>
-                                </div>
-                                <div class="card-body">
-                                    <div id="box1Details"></div>
-                                    <hr>
-                                    <div class="row">
-                                        <div class="col-6"><strong>Box1 Total:</strong></div>
-                                        <div class="col-6 text-end"><strong id="box1Total">€0.00</strong></div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="card mt-3">
-                                <div class="card-header">
-                                    <h5 class="mb-0">💼 Box3 - Wealth Tax</h5>
-                                </div>
-                                <div class="card-body">
-                                    <div class="row mb-3">
-                                        <div class="col-6"><span>Total Assets:</span></div>
-                                        <div class="col-6 text-end"><strong id="totalAssets">€0.00</strong></div>
-                                    </div>
-                                    <div class="row mb-3">
-                                        <div class="col-6"><span>Tax Rate:</span></div>
-                                        <div class="col-6 text-end"><strong id="box3Rate">36.00%</strong></div>
-                                    </div>
-                                    <div id="box3Allocation"></div>
-                                    <hr>
-                                    <div class="row">
-                                        <div class="col-6"><strong>Box3 Total:</strong></div>
-                                        <div class="col-6 text-end"><strong id="box3Total">€0.00</strong></div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="card mt-3 summary-total">
-                                <div class="card-body">
-                                    <div class="row">
-                                        <div class="col-6"><h5>Total Tax Due</h5></div>
-                                        <div class="col-6 text-end"><h5 id="finalTotalTax">€0.00</h5></div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <button type="button" class="btn btn-secondary w-100 mt-3" id="clearBtn">Clear Results</button>
+                <section class="flow-step" data-step="2a">
+                    <h3>2a. Eigen woning (huishouden)</h3>
+                    <div class="subblock">
+                        <div class="grid two">
+                            <label class="inline-toggle">Eigen woning aanwezig
+                                <input type="checkbox" id="has-own-home-household">
+                            </label>
+                            <label>WOZ-waarde
+                                <input type="number" min="0" step="1" id="woz-household" value="0">
+                            </label>
+                            <label>Periode (0-1)
+                                <input type="number" min="0" max="1" step="0.01" id="period-household" value="1">
+                            </label>
                         </div>
                     </div>
+                </section>
 
-                    <div id="emptyState" class="empty-state-section">
-                        <div class="empty-state-icon">📊</div>
-                        <h3>No Results Yet</h3>
-                        <p>Fill in the form on the left and click "Calculate Taxes" to see your tax calculation here.</p>
+                <section class="flow-step" data-step="3">
+                    <h3>3. Box 3 (gezamenlijk huishouden)</h3>
+                    <div class="subblock">
+                        <h5>Sparen (meerdere rekeningen)</h5>
+                        <div id="savings-list"></div>
+                        <button type="button" class="btn ghost" id="addSavingsBtn">+ Spaarrekening</button>
+                        <div class="totals-row"><span>Subtotaal sparen</span><strong id="subtotalSavings">EUR 0</strong></div>
                     </div>
+
+                    <div class="subblock">
+                        <h5>Beleggen (meerdere rekeningen)</h5>
+                        <div id="investments-list"></div>
+                        <button type="button" class="btn ghost" id="addInvestmentsBtn">+ Beleggingsrekening</button>
+                        <div class="totals-row"><span>Subtotaal beleggen</span><strong id="subtotalInvestments">EUR 0</strong></div>
+                    </div>
+
+                    <div class="subblock">
+                        <h5>Overige bezittingen</h5>
+                        <div class="editor-header simple-header">
+                            <span>Omschrijving</span>
+                            <span>Bedrag</span>
+                            <span>Actie</span>
+                        </div>
+                        <div id="other-assets-list"></div>
+                        <button type="button" class="btn ghost" id="addOtherAssetBtn">+ Overige bezitting</button>
+                        <div class="totals-row"><span>Subtotaal overige bezittingen</span><strong id="subtotalOtherAssets">EUR 0</strong></div>
+                    </div>
+
+                    <div class="subblock">
+                        <h5>Schulden</h5>
+                        <div class="editor-header simple-header">
+                            <span>Omschrijving</span>
+                            <span>Bedrag</span>
+                            <span>Actie</span>
+                        </div>
+                        <div id="debts-list"></div>
+                        <button type="button" class="btn ghost" id="addDebtBtn">+ Schuld</button>
+                        <div class="totals-row"><span>Subtotaal schulden</span><strong id="subtotalDebts">EUR 0</strong></div>
+                    </div>
+
+                    <div class="subblock">
+                        <h5>Fictief rendement (op basis van sparen en beleggen)</h5>
+                        <div class="totals-row"><span>Fictief rendement sparen</span><strong id="deemedSavings">EUR 0</strong></div>
+                        <div class="totals-row"><span>Fictief rendement beleggen</span><strong id="deemedInvestments">EUR 0</strong></div>
+                    </div>
+                </section>
+
+                <section class="flow-step" data-step="4">
+                    <h3>4. Verdeel gezamenlijke posten</h3>
+                    <p class="step-note">Verdeel de gezamenlijke posten over de fiscale partners. Per regel moet de som van de partnerbedragen gelijk zijn aan het totaal.</p>
+                    <div id="jointDistributionContainer"></div>
+                    <div class="button-stack">
+                        <button type="button" id="confirmDistributionBtn" class="btn ghost">Bevestig verdeling en ga door</button>
+                        <small id="distributionStatus" class="step-status">Nog niet bevestigd</small>
+                    </div>
+                </section>
+
+                <section class="flow-step" data-step="5">
+                    <h3>5. Heffingskortingen (na verdeling)</h3>
+                    <div id="creditsContainer"></div>
+                </section>
+
+                <section class="flow-step" data-step="6">
+                    <h3>6. Controle en berekenen</h3>
+                    <div class="grid two">
+                        <div class="button-stack">
+                            <button type="submit" class="btn primary">Bereken volledige aangifte</button>
+                        </div>
+                    </div>
+                </section>
+            </form>
+        </section>
+
+        <section class="panel result-panel">
+            <div class="panel-head">
+                <h2>Uitkomst</h2>
+                <p>Resultaten volgen exact de Box-structuur en verrekenstappen.</p>
+            </div>
+
+            <div id="emptyState" class="empty-state">
+                <p>Nog geen berekening uitgevoerd.</p>
+            </div>
+
+            <div id="resultsSection" class="hidden">
+                <div class="kpis">
+                    <article>
+                        <span>Resultaat</span>
+                        <strong id="kpiSettlement">EUR 0</strong>
+                        <small id="kpiSettlementType">TE_BETALEN</small>
+                    </article>
+                    <article>
+                        <span>Effectief tarief</span>
+                        <strong id="kpiRate">0.00%</strong>
+                        <small>op Box 1 bruto inkomen</small>
+                    </article>
+                    <article>
+                        <span>Verzamelinkomen</span>
+                        <strong id="kpiVerzamel">EUR 0</strong>
+                        <small>Box 1 + Box 2 + Box 3 inkomen</small>
+                    </article>
                 </div>
-            </div>
-        </main>
 
-        <footer class="footer-section mt-5">
-            <div class="container-lg">
-                <p>For official tax purposes, consult the Dutch Tax Authority (Belastingdienst)</p>
-                <small>This calculator is for informational purposes only</small>
-            </div>
-        </footer>
-    </div>
+                <section class="result-block">
+                    <h3>Box 1 - Werk en woning</h3>
+                    <div id="box1Members"></div>
+                    <div class="totals-row"><span>Totaal Box 1 belasting</span><strong id="box1Total">EUR 0</strong></div>
+                </section>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="/app.js"></script>
+                <section class="result-block">
+                    <h3>Box 2 - Aanmerkelijk belang</h3>
+                    <div class="totals-row"><span>Totaal belastbaar Box 2 inkomen</span><strong id="box2Income">EUR 0</strong></div>
+                    <div class="totals-row"><span>Tarief</span><strong id="box2Rate">0%</strong></div>
+                    <div class="totals-row"><span>Totaal Box 2 belasting</span><strong id="box2Tax">EUR 0</strong></div>
+                </section>
+
+                <section class="result-block">
+                    <h3>Box 3 - Vermogen</h3>
+                    <div class="totals-row"><span>Netto vermogen na schulden</span><strong id="box3NetAssets">EUR 0</strong></div>
+                    <div class="totals-row"><span>Negatieve inkomenspost schulden</span><strong id="box3DebtIncomePost">EUR 0</strong></div>
+                    <div class="totals-row"><span>Heffingsvrij vermogen</span><strong id="box3TaxFree">EUR 0</strong></div>
+                    <div class="totals-row"><span>Correctiefactor</span><strong id="box3Correction">0%</strong></div>
+                    <div class="totals-row"><span>Inkomen Box 3 (fictief rendement)</span><strong id="box3Income">EUR 0</strong></div>
+                    <div class="totals-row"><span>Totaal Box 3 belasting</span><strong id="box3Tax">EUR 0</strong></div>
+                    <div id="box3Allocation"></div>
+                </section>
+
+                <section class="result-block">
+                    <h3>Samenvatting partners</h3>
+                    <div id="summaryPartners"></div>
+                    <div class="totals-row final"><span>Telling belasting partner 1 + 2</span><strong id="summaryCombinedTax">EUR 0</strong></div>
+                </section>
+
+            </div>
+        </section>
+    </main>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>

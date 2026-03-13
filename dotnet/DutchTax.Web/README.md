@@ -1,6 +1,13 @@
 # DutchTax.Web (.NET versie)
 
-ASP.NET Core versie van de Dutch Tax Calculator met dezelfde frontend-flow en API-endpoints.
+ASP.NET Core versie van de Dutch Tax Calculator met dezelfde procesflow als de Python-app.
+
+Ondersteund in deze .NET-variant:
+
+- `POST /api/joint-items-preview` voor verplichte partnerverdeling
+- `POST /api/calculate` met Box 1/2/3, premies, heffingskortingen en eindafrekening
+- buitenlandse dividendverrekening en groene-beleggingenkorting
+- kleine-aanslagregel (`<= EUR 57` -> `NIETS_TE_BETALEN`)
 
 ## Vereisten
 
@@ -33,8 +40,9 @@ Open daarna:
 ## API endpoints
 
 - `GET /api/income-types`
-- `GET /api/asset-types`
+- `GET /api/box1-deduction-types`
 - `GET /api/allocation-strategies`
+- `POST /api/joint-items-preview`
 - `POST /api/calculate`
 
 ## Frontend

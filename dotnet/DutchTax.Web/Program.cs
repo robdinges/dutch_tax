@@ -1,11 +1,22 @@
 using DutchTax.Web.Models;
 using DutchTax.Web.Services;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddSingleton<TaxCalculatorService>();
 
 var app = builder.Build();
+
+var pathBase = builder.Configuration["PATH_BASE"];
+if (!string.IsNullOrWhiteSpace(pathBase))
+{
+    if (!pathBase.StartsWith('/'))
+    {
+        pathBase = "/" + pathBase;
+    }
+    app.UsePathBase(pathBase);
+}
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
@@ -14,24 +25,22 @@ app.MapGet("/api/income-types", () => Results.Json(new
 {
     types = new[]
     {
-        new TypeOption { Id = "EMPLOYMENT", Label = "Employment (W-2/salary)" },
-        new TypeOption { Id = "SELF_EMPLOYMENT", Label = "Self-Employment (business)" },
-        new TypeOption { Id = "RENTAL", Label = "Rental (property income)" },
-        new TypeOption { Id = "PENSION", Label = "Pension (retirement)" },
-        new TypeOption { Id = "INVESTMENT", Label = "Investment (dividends, interest)" },
-        new TypeOption { Id = "OTHER", Label = "Other" }
+        new TypeOption { Id = "EMPLOYMENT", Label = "Loon uit dienstverband" },
+        new TypeOption { Id = "SELF_EMPLOYMENT", Label = "Winst uit onderneming" },
+        new TypeOption { Id = "BENEFITS", Label = "Uitkeringen" },
+        new TypeOption { Id = "PENSION", Label = "Pensioen" },
+        new TypeOption { Id = "OTHER", Label = "Overig Box 1 inkomen" }
     }
 }));
 
-app.MapGet("/api/asset-types", () => Results.Json(new
+app.MapGet("/api/box1-deduction-types", () => Results.Json(new
 {
     types = new[]
     {
-        new TypeOption { Id = "SAVINGS", Label = "Savings Account" },
-        new TypeOption { Id = "INVESTMENT", Label = "Investment Portfolio" },
-        new TypeOption { Id = "REAL_ESTATE", Label = "Real Estate (primary residence excluded)" },
-        new TypeOption { Id = "BUSINESS", Label = "Business Assets" },
-        new TypeOption { Id = "OTHER", Label = "Other Assets" }
+        new TypeOption { Id = "MORTGAGE_INTEREST", Label = "Hypotheekrente" },
+        new TypeOption { Id = "ENTREPRENEUR_ALLOWANCE", Label = "Ondernemersaftrek" },
+        new TypeOption { Id = "PERSONAL_ALLOWANCE", Label = "Persoonsgebonden aftrek" },
+        new TypeOption { Id = "OTHER", Label = "Overige aftrek" }
     }
 }));
 
@@ -39,17 +48,30 @@ app.MapGet("/api/allocation-strategies", () => Results.Json(new
 {
     strategies = new[]
     {
-        new TypeOption { Id = "EQUAL", Label = "Equal (50-50 split)" },
-        new TypeOption { Id = "PROPORTIONAL", Label = "Proportional (by income)" },
-        new TypeOption { Id = "CUSTOM", Label = "Custom percentages" }
+        new TypeOption { Id = "EQUAL", Label = "Gelijk" },
+        new TypeOption { Id = "PROPORTIONAL", Label = "Proportioneel op netto vermogen" },
+        new TypeOption { Id = "CUSTOM", Label = "Custom verdeling (%)" }
     }
 }));
 
-app.MapPost("/api/calculate", (TaxRequest request, TaxCalculatorService calculator) =>
+app.MapPost("/api/joint-items-preview", (JsonElement payload, TaxCalculatorService calculator) =>
 {
     try
     {
-        var result = calculator.Calculate(request);
+        var result = calculator.PreviewJointItems(payload);
+        return Results.Json(result);
+    }
+    catch (Exception ex)
+    {
+        return Results.Json(new { error = $"Preview error: {ex.Message}" }, statusCode: 500);
+    }
+});
+
+app.MapPost("/api/calculate", (JsonElement payload, TaxCalculatorService calculator) =>
+{
+    try
+    {
+        var result = calculator.Calculate(payload);
         return Results.Json(result);
     }
     catch (Exception ex)

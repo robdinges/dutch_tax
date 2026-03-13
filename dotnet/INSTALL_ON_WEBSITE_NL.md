@@ -59,6 +59,7 @@ SyslogIdentifier=dutchtax
 User=www-data
 Environment=ASPNETCORE_ENVIRONMENT=Production
 Environment=ASPNETCORE_URLS=http://127.0.0.1:5005
+Environment=PATH_BASE=/dutch_tax
 
 [Install]
 WantedBy=multi-user.target
@@ -82,7 +83,7 @@ server {
     listen 80;
     server_name jouwdomein.nl www.jouwdomein.nl;
 
-    location / {
+    location /dutch_tax/ {
         proxy_pass         http://127.0.0.1:5005;
         proxy_http_version 1.1;
         proxy_set_header   Upgrade $http_upgrade;
@@ -136,8 +137,8 @@ IIS gebruikt `aspNetCore` module automatisch om `DutchTax.Web.dll` te starten.
 
 Na deploy:
 
-- Open `https://jouwdomein.nl`
-- Controleer in browser network tab dat `/api/income-types` en `/api/calculate` 200 teruggeven.
+- Open `https://www.vandererve.com/dutch_tax/`
+- Controleer in browser network tab dat `/dutch_tax/api/income-types` en `/dutch_tax/api/calculate` 200 teruggeven.
 
 ## Veelvoorkomende issues
 
