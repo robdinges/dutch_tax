@@ -7,35 +7,7 @@ namespace DutchTax.Web.Services;
 
 public sealed class TaxCalculatorService
 {
-    private const decimal Box2Rate2025 = 0.269m;
-    private const decimal SmallOwnHomeDebtDeductionRate = 0.76667m;
-    private const decimal SmallPayableAssessmentThreshold = 57m;
-
-    private static readonly decimal[] EigenwoningforfaitThresholds = [0m, 12_500m, 25_000m, 50_000m, 75_000m, 1_330_000m];
-    private static readonly decimal[] EigenwoningforfaitPercents = [0m, 0.0010m, 0.0020m, 0.0025m, 0.0035m];
-    private const decimal EigenwoningforfaitUpperBaseFixed = 4655m;
-    private const decimal EigenwoningforfaitUpperRate = 0.0235m;
-
-    private static readonly TaxConfig Config2025 = new()
-    {
-        Year = 2025,
-        Box1Brackets =
-        [
-            new TaxBracket(0m, 38_441m, 0.0817m, "First bracket (8.17%)"),
-            new TaxBracket(38_441m, 76_817m, 0.3748m, "Second bracket (37.48%)"),
-            new TaxBracket(76_817m, null, 0.4950m, "Third bracket (49.50%)")
-        ],
-        Box3Rate = 0.3600m,
-        Box3SavingsReturnRate = 0.0137m,
-        Box3InvestmentReturnRate = 0.0588m,
-        Box3TaxFreeAssetsSingle = 57_684m,
-        PremiumAowRate = 0.1790m,
-        PremiumAnwRate = 0.0010m,
-        PremiumWlzRate = 0.0965m,
-        PremiumIncomeCap = 38_441m,
-        GreenInvestmentTaxCreditRate = 0.0010m,
-        GreenInvestmentCreditBaseCapSingle = 26_312m
-    };
+    // All rates, brackets, and amounts are now sourced from TaxConfigs.Latest
 
     private readonly string _contentRootPath;
 

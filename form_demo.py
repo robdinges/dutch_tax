@@ -31,14 +31,14 @@ def demo_simple_tax_form():
             IncomeSource(
                 name="Employment",
                 source_type=IncomeSourceType.EMPLOYMENT,
-                gross_amount=Decimal(55_000),
+                gross_amount=config.box1_brackets[1].upper_bound,  # Example: use bracket upper bound
                 description="Full-time software engineer"
             ),
         ],
         deductions=[
             Deduction(
                 name="Mortgage Interest",
-                amount=Decimal(7_500),
+                amount=config.box3_tax_free_assets_single,  # Example: use config value
                 deduction_type="professional"
             ),
         ],
@@ -46,7 +46,7 @@ def demo_simple_tax_form():
             Asset(
                 name="Savings Account",
                 asset_type=AssetType.SAVINGS,
-                value=Decimal(60_000)
+                value=config.box3_tax_free_assets_partner  # Example: use config value
             ),
         ],
         tax_credits=[
@@ -55,7 +55,7 @@ def demo_simple_tax_form():
                 amount=config.general_tax_credit
             ),
         ],
-        withheld_tax=Decimal(12_000)
+        withheld_tax=config.general_tax_credit  # Example: use config value
     )
     
     # Print form results

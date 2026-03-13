@@ -1028,7 +1028,7 @@ def calculate_tax():
         premium_aow = premium_aow_total
         premium_anw = premium_anw_total
         premium_wlz = premium_wlz_total
-        total_premiums = premium_aow + premium_anw + premium_wlz
+            total_premiums = round_up_euro(premium_aow + premium_anw + premium_wlz)
 
         box1_box3_tax = box1_total + box3_total
         gross_income_tax = round_down_euro(box1_box3_tax + total_premiums + box2_total)
