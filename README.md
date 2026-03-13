@@ -1,28 +1,50 @@
 # Nederlandse Inkomstenbelasting Calculator (Procesflow)
 
-Deze applicatie rekent de particuliere Nederlandse inkomstenbelasting door op basis van een volledige procesflow:
+Deze applicatie rekent particuliere Nederlandse inkomstenbelasting door op basis van een vaste procesflow:
 
 1. Gegevens verzamelen
-2. Fiscale partner bepalen
-3. Inkomsten indelen in boxen
+2. Fiscale partner en huishouden bepalen
+3. Gegevens per box vastleggen
 4. Gezamenlijke posten verdelen over partners
-5. Box 1/2/3 per partner volledig berekenen
-6. Totale belasting + verrekening per partner en huishouden
-7. Eindresultaat tonen
-
-De webapp bevat zowel de rekenengine als een overzichtelijke UI die exact op deze flow is ingericht.
+5. Box 1/2/3 en premies per partner berekenen
+6. Verrekeningen en eindafrekening bepalen
 
 ## Kernfunctionaliteit
 
-- Box 1: inkomsten met arbeidskorting per regel, huishoud-eigenwoningforfait, aftrekposten, progressieve schijven
-- Box 1 kortingen: meerdere losse heffingskortingen die de gebruiker zelf invult
-- Box 2: aanmerkelijk belang (>=5%), dividend/verkoop minus verkrijgingsprijs
-- Box 3: spaargeld, beleggingen, overige bezittingen, schulden, heffingsvrij vermogen
-- Partnerlogica: expliciete verdeling van gezamenlijke posten met somcontrole
-- Gezamenlijke posten in verdeling: eigenwoningforfait, grondslag voordeel uit sparen en beleggen, vrijstelling groene beleggingen, ingehouden dividendbelasting
-- Premies volksverzekeringen: AOW (0% bij AOW-gerechtigd, anders 17.9%), Anw (0.1%), Wlz (9.65%)
-- Eindafrekening: per partner volledig (belasting + premies - kortingen - voorheffingen) en daarna huishoudtotaal
-- JSON-opslag en herladen van invoer via `submissions/<household_id>.json`
+- Box 1: inkomen, eigenwoningforfait, aftrekposten, schijven, heffingskortingen
+- Box 2: aanmerkelijk belang
+- Box 3: sparen, beleggen, groene beleggingen, schulden, heffingsvrij vermogen
+- Partnerverdeling met somcontrole op gezamenlijke posten
+- Binnenlandse dividendbelasting als voorheffing
+- Buitenlandse dividendbelasting als aparte verdeelpost en directe verrekening op Box 3-belasting
+- Kleine te betalen aanslag-regel: bedragen `<= EUR 57` worden op `EUR 0` gezet
+- JSON-opslag/herladen via `submissions/<household_id>.json`
+
+## API-overzicht
+
+- `GET /`
+- `GET /api/income-types`
+- `GET /api/box1-deduction-types`
+- `GET /api/allocation-strategies`
+- `POST /api/joint-items-preview`
+- `POST /api/calculate`
+
+## Belangrijkste joint distribution posten
+
+- `eigenwoningforfait`
+- `aftrek_geen_of_kleine_eigenwoningschuld`
+- `grondslag_voordeel_sparen_beleggen`
+- `vrijstelling_groene_beleggingen`
+- `ingehouden_dividendbelasting`
+- `ingehouden_buitenlandse_dividendbelasting`
+
+## Buitenlandse dividendbelasting
+
+Buitenlandse bronbelasting op dividend wordt in dit programma bewust vereenvoudigd verwerkt:
+
+- Alleen een netto te verrekenen bedrag wordt ingevoerd.
+- Complexe verdrags- en bronstaatberekeningen worden niet in deze tool uitgevoerd.
+- Het ingevoerde bedrag wordt direct verrekend met de berekende Box 3-belasting (met ondergrens `EUR 0`).
 
 ## Starten
 
@@ -36,100 +58,14 @@ Open daarna:
 http://127.0.0.1:8000
 ```
 
-## API-overzicht
-
-- `GET /`
-- `GET /api/income-types`
-- `GET /api/box1-deduction-types`
-- `GET /api/allocation-strategies`
-- `POST /api/joint-items-preview`
-- `POST /api/calculate`
-
-## Belangrijkste invoer (POST /api/calculate)
-
-```json
-{
-  "household_id": "HH2026-001",
-  "fiscal_partner": true,
-  "children_count": 1,
-  "joint_distribution": {
-    "eigenwoningforfait": {
-      "123456789": 1050,
-      "987654321": 1050
-    },
-    "grondslag_voordeel_sparen_beleggen": {
-      "123456789": 9000,
-      "987654321": 6000
-    },
-    "vrijstelling_groene_beleggingen": {
-      "123456789": 1000,
-      "987654321": 500
-    },
-    "ingehouden_dividendbelasting": {
-      "123456789": 240,
-      "987654321": 60
-    }
-  },
-  "members": [
-    {
-      "member_id": "123456789",
-      "full_name": "Jan Jansen",
-      "bsn": "123456789",
-      "wage_withholding": 12000,
-      "dividend_withholding": 300,
-      "box1": {
-        "incomes": [
-          {"type": "EMPLOYMENT", "amount": 65000, "labor_credit": 2400}
-        ],
-        "deductions": [
-          {"type": "PERSONAL_ALLOWANCE", "name": "Hypotheekrente", "amount": 7000},
-          {"type": "PERSONAL_ALLOWANCE", "name": "Giften", "amount": 500}
-        ],
-        "has_aow": false,
-        "tax_credits": [
-          {"name": "Algemene heffingskorting", "amount": 1500},
-          {"name": "Arbeidskorting", "amount": 2400}
-        ]
-      },
-      "box2": {
-        "has_substantial_interest": false,
-        "dividend_income": 0,
-        "sale_gain": 0,
-        "acquisition_price": 0
-      },
-      "box3": {
-        "savings": 50000,
-        "investments": 25000,
-        "other_assets": 0,
-        "debts": 10000
-      }
-    }
-  ],
-  "household_box1": {
-    "own_home": {
-      "has_own_home": true,
-      "woz_value": 420000,
-      "period_fraction": 1
-    }
-  }
-}
-```
-
-## Output samenvatting
-
-De response bevat:
-
-- `members[]` met detail per persoon voor Box 1, Box 2, Box 3, premies, voorheffingen en partner-eindafrekening
-- `joint_distribution` en `joint_distribution_totals`
-- `box1`, `box2`, `box3` huishoudtotalen
-- `settlement` met eindafrekening (`TE_BETALEN` of `TERUGGAAF`)
-- `verzamelinkomen`
-
 ## Documentatie
 
-- `GUI_README.md`: scherm- en UX-uitleg
-- `DO_BESTAND.md`: exact invoermodel, formules en outputvelden
+- `DO_BESTAND.md`: actuele invoer, berekeningsstappen en outputvelden
+- `GUI_README.md`: UI-flow en schermuitleg
+- `FUNCTIONEEL_EN_OBJECTMODEL_PYTHON_NL.md`: functioneel ontwerp en domeinmodel
+- `LR_aangifte_opbouw.md`: casusdocumentatie in aangifte-opbouw
+- `CODE_STRUCTURE.md`: code-indeling voor ontwikkelaars
 
 ## Disclaimer
 
-Deze software is een rekenhulp. Controleer officiële regels en definitieve bedragen altijd via de Belastingdienst of een fiscalist.
+Deze software is een rekenhulp. Controleer definitieve fiscale regels en bedragen altijd via de Belastingdienst of een fiscalist.

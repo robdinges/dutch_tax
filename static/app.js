@@ -10,6 +10,7 @@ const app = {
         { key: "grondslag_voordeel_sparen_beleggen", label: "Grondslag voordeel uit sparen en beleggen" },
         { key: "vrijstelling_groene_beleggingen", label: "Vrijstelling groene beleggingen" },
         { key: "ingehouden_dividendbelasting", label: "Ingehouden dividendbelasting" },
+        { key: "ingehouden_buitenlandse_dividendbelasting", label: "Ingehouden buitenlandse dividendbelasting" },
     ],
     latestJointPreview: null,
     distributionConfirmed: false,
@@ -222,7 +223,7 @@ const app = {
         this.attachBox3RowListeners(node);
     },
 
-    addInvestmentRow(name = "", amount = 0, isGreen = false, dividendWithholding = 0) {
+    addInvestmentRow(name = "", amount = 0, isGreen = false, dividendWithholding = 0, foreignDividendWithholding = 0) {
         const rowId = this.makeRowId("invest-row");
         const node = document.createElement("div");
         node.className = "editor-row investments-row";
@@ -239,6 +240,9 @@ const app = {
             </label>
             <label>Dividendbelasting
                 <input type="number" min="0" step="1" data-kind="dividend-withholding" value="${dividendWithholding}">
+            </label>
+            <label>Buitenlandse dividendbelasting
+                <input type="number" min="0" step="1" data-kind="foreign-dividend-withholding" value="${foreignDividendWithholding}">
             </label>
             <button type="button" class="btn ghost row-remove" onclick="app.removeRow('${rowId}')">Verwijder</button>
         `;
@@ -623,7 +627,8 @@ const app = {
             amount: Number(row.querySelector("[data-kind='amount']")?.value || 0),
             is_green: Boolean(row.querySelector("[data-kind='is-green']")?.checked),
             dividend_withholding: Number(row.querySelector("[data-kind='dividend-withholding']")?.value || 0),
-        })).filter((x) => x.name || x.amount > 0 || x.dividend_withholding > 0);
+            foreign_dividend_withholding: Number(row.querySelector("[data-kind='foreign-dividend-withholding']")?.value || 0),
+        })).filter((x) => x.name || x.amount > 0 || x.dividend_withholding > 0 || x.foreign_dividend_withholding > 0);
 
         const otherAssets = collect("#other-assets-list > div").map((row) => ({
             name: row.querySelector("[data-kind='name']")?.value || "Overige bezitting",
@@ -644,6 +649,7 @@ const app = {
         const totalOtherAssets = otherAssets.reduce((sum, item) => sum + item.amount, 0);
         const totalDebts = Math.abs(debts.reduce((sum, item) => sum + item.amount, 0));
         const totalDividendWithholding = investmentAccounts.reduce((sum, item) => sum + item.dividend_withholding, 0);
+        const totalForeignDividendWithholding = investmentAccounts.reduce((sum, item) => sum + item.foreign_dividend_withholding, 0);
 
         return {
             savings_accounts: savingsAccounts,
@@ -655,6 +661,7 @@ const app = {
             other_assets: totalOtherAssets,
             debts: totalDebts,
             total_dividend_withholding: totalDividendWithholding,
+            total_foreign_dividend_withholding: totalForeignDividendWithholding,
         };
     },
 
@@ -734,6 +741,7 @@ const app = {
                 },
             },
             dividend_withholding_total: box3Household.total_dividend_withholding,
+            foreign_dividend_withholding_total: box3Household.total_foreign_dividend_withholding,
             box3_household: box3Household,
             joint_distribution: this.collectJointDistribution(),
             members,
@@ -859,9 +867,21 @@ const app = {
             }
 
             this.investmentsList.innerHTML = "";
-            (box3.investment_accounts || []).forEach((row) => this.addInvestmentRow(row.name || "", row.amount || row.value || 0, !!row.is_green, row.dividend_withholding || 0));
+            (box3.investment_accounts || []).forEach((row) => this.addInvestmentRow(
+                row.name || "",
+                row.amount || row.value || 0,
+                !!row.is_green,
+                row.dividend_withholding || 0,
+                row.foreign_dividend_withholding || 0,
+            ));
             if ((box3.investment_accounts || []).length === 0) {
-                this.addInvestmentRow("", box3.investments || 0, false, payload.dividend_withholding_total || 0);
+                this.addInvestmentRow(
+                    "",
+                    box3.investments || 0,
+                    false,
+                    payload.dividend_withholding_total || 0,
+                    payload.foreign_dividend_withholding_total || 0,
+                );
             }
 
             this.otherAssetsList.innerHTML = "";
@@ -918,6 +938,8 @@ const app = {
                     <div class="totals-row"><span>Vrijstelling groene beleggingen</span><strong>${this.currency(member.box3.vrijstelling_groene_beleggingen)}</strong></div>
                     <div class="totals-row"><span>Belastbaar inkomen Box 3 (toegedeeld)</span><strong>${this.currency(member.box3.taxable_income)}</strong></div>
                     <div class="totals-row"><span>Belasting Box 3</span><strong>${this.currency(member.box3.tax)}</strong></div>
+                    <div class="totals-row"><span>Buitenlandse dividendbelasting (toegedeeld)</span><strong>${this.currency(member.box3.foreign_dividend_withholding || 0)}</strong></div>
+                    <div class="totals-row"><span>Verrekening buitenlandse dividendbelasting op Box 3</span><strong>${this.currency(member.box3.foreign_dividend_tax_credit_applied || 0)}</strong></div>
                     <div class="totals-row"><span>Premies totaal</span><strong>${this.currency(member.premiums.total)}</strong></div>
                     <div class="totals-row"><span>Heffingskortingen totaal</span><strong>${this.currency(member.box1.credits.total)}</strong></div>
                     <div class="totals-row"><span>Voorheffingen totaal</span><strong>${this.currency(member.prepayments.total)}</strong></div>
@@ -951,10 +973,16 @@ const app = {
                     <h4>Partner ${index + 1}: ${member.full_name}</h4>
                     <div class="totals-row"><span>Belasting Box 1</span><strong>${this.currency(member.box1.tax)}</strong></div>
                     <div class="totals-row"><span>Belasting Box 2</span><strong>${this.currency(member.box2.tax)}</strong></div>
-                    <div class="totals-row"><span>Box 3 grondslag (toegedeeld)</span><strong>${this.currency(member.box3.grondslag_voordeel_sparen_beleggen)}</strong></div>
+                    <div class="totals-row"><span>Grondslag rendementsberekening</span><strong>${this.currency(member.box3.grondslag_rendementsberekening)}</strong></div>
+                    <div class="totals-row"><span>Grondslag sparen en beleggen</span><strong>${this.currency(member.box3.grondslag_sparen_beleggen)}</strong></div>
+                    <div class="totals-row"><span>Fictief rendement (totaal)</span><strong>${this.currency(member.box3.fictief_rendement_totaal)}</strong></div>
+                    <div class="totals-row"><span>Aandeel partner</span><strong>${(member.box3.partner_share_percentage || 0).toFixed(2)}%</strong></div>
+                    <div class="totals-row"><span>Fictief rendement partner</span><strong>${this.currency(member.box3.fictief_rendement_partner)}</strong></div>
                     <div class="totals-row"><span>Belastbaar inkomen Box 3 (toegedeeld)</span><strong>${this.currency(member.box3.taxable_income)}</strong></div>
+                    <div class="totals-row"><span>Box 3 belasting voor verrekening buitenlands dividend</span><strong>${this.currency(member.box3.tax_before_foreign_dividend || member.box3.tax)}</strong></div>
+                    <div class="totals-row"><span>Verrekening buitenlands dividend</span><strong>${this.currency(member.box3.foreign_dividend_tax_credit_applied || 0)}</strong></div>
                     <div class="totals-row"><span>Tarief Box 3</span><strong>${box3.tax_rate.toFixed(2)}%</strong></div>
-                    <div class="totals-row"><span>Belasting Box 3 (${this.currency(member.box3.taxable_income)} x ${box3.tax_rate.toFixed(2)}%)</span><strong>${this.currency(member.box3.tax)}</strong></div>
+                    <div class="totals-row"><span>Belasting Box 3</span><strong>${this.currency(member.box3.tax)}</strong></div>
                 </article>
             `;
         }).join("");

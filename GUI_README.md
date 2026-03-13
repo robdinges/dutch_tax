@@ -1,83 +1,67 @@
 # GUI Handleiding - Procesflow Editie
 
-De UI is opgebouwd als workflow met twee kolommen.
+## Schermindeling
 
-- Links: invoer volgens processtappen.
-- Rechts: resultaten voor Box 1, Box 2, Box 3 en eindafrekening.
+- Links: invoerflow
+- Rechts: resultaten en samenvattingen
 
-## Schermopbouw
-
-### 1. Invoerblok
+## Invoerflow
 
 1. `Verzamel gegevens`
-
 - Huishouden-ID
 - Aantal personen
 - Fiscaal partnerschap
 - Aantal kinderen
+- JSON laden
 
-1. `Persoonsdossiers`
+2. `Persoonsdossiers`
+- Naam/BSN
+- Box 1 inkomensregels
+- AOW-status
+- Persoonsgebonden aftrek
+- Box 2 gegevens
+- Heffingskortingen
 
-Per persoon:
-
-- Basis (naam, BSN, voorheffingen)
-- Box 1 inkomsten (inclusief arbeidskorting per inkomensregel)
-- Box 1 AOW-status (checkbox per persoon)
-- Box 1 overige kortingen
-- Box 2 aanmerkelijk belang
-- Optioneel custom Box 3 percentage
-
-1. `Eigen woning (huishouden)`
-
-- Eigen woning aanwezig
-- WOZ-waarde
+3. `Eigen woning (huishouden)`
+- Aan/uit
+- WOZ
 - Periode
 
-1. `Box 3 huishouden`
+4. `Box 3 (huishouden)`
+- Spaarrekeningen
+- Beleggingsrekeningen
+- Overige bezittingen
+- Schulden
+- Per beleggingsrekening:
+- `dividend_withholding` (binnenlands)
+- `foreign_dividend_withholding` (buitenlands, netto verrekenbedrag)
 
-- Vermogen en schulden op huishoudniveau
-- Schulden worden als negatieve inkomenspost meegenomen in Box 3 inkomen
+5. `Verdeel gezamenlijke posten`
+- Eigenwoningforfait
+- Aftrek kleine/geen eigenwoningschuld
+- Grondslag sparen/beleggen
+- Vrijstelling groene beleggingen
+- Ingehouden dividendbelasting (binnenlands)
+- Ingehouden buitenlandse dividendbelasting
+- Validatie: som partnerbedragen moet per regel gelijk zijn aan totaal
 
-1. `Verdeel gezamenlijke posten`
+6. `Controle en berekenen`
+- Alleen mogelijk na bevestigde geldige verdeling
 
-- Getoonde totalen voor:
-	- eigenwoningforfait (bijtelling Box 1)
-	- aftrek geen of kleine eigenwoningschuld (76,667% van eigenwoningforfait)
-	- grondslag voordeel uit sparen en beleggen
-	- vrijstelling groene beleggingen
-	- ingehouden dividendbelasting
-- Per partner invoervelden per post
-- Validatie per regel: som partnerbedragen moet gelijk zijn aan totaal
-- Knop om verdeling te bevestigen en door te gaan
+## Resultaten
 
-1. `Controle en berekenen`
+- KPI's: nettoresultaat, effectief tarief, verzamelinkomen
+- Box 1, Box 2, Box 3 details
+- Per partner:
+- Box 3 belasting voor en na verrekening buitenlands dividend
+- Heffingskortingen inclusief groene-beleggingenkorting
+- Voorheffingen en eindafrekening
+- Huishouden:
+- nettoresultaat na kleine-aanslagregel (`<= EUR 57` => `NIETS_TE_BETALEN` op persoonsniveau)
 
-- JSON importeren
-- Berekening starten
+## JSON-formaat
 
-### 2. Resultatenblok
-
-Resultaten worden opgebouwd in fiscale volgorde.
-
-- KPI's: eindresultaat, effectief tarief, verzamelinkomen
-- Box 1: detail per persoon + schijven
-- Box 2: totaal belastbaar inkomen en belasting
-- Box 3: netto vermogen, heffingsvrij vermogen, correctie en toerekening
-- Per partner: volledige afrekening met Box 1, Box 2, Box 3, premies, heffingskortingen en voorheffingen
-- Verrekening huishouden: totaal van beide partneruitkomsten
-
-## UX-principes
-
-- Elke sectie volgt direct de fiscale flow.
-- Formulieren zijn gegroepeerd per box.
-- Ontwerp werkt op desktop en mobiel.
-- JSON-opslag maakt hergebruik van dossiers makkelijk.
-
-## JSON laden
-
-Via `Laad JSON in formulier` kun je payloads uit `submissions/` terugzetten in de UI.
-
-Ondersteund formaat:
+Ondersteund:
 
 - Wrapped: `{ "saved_at": ..., "data": { ...payload... } }`
 - Direct: `{ ...payload... }`

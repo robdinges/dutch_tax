@@ -1,6 +1,6 @@
 # DO Bestand - Invoer, Berekening en Output (Procesflow 2026)
 
-Dit document beschrijft de actuele gegevensstructuur en rekenstappen in de webapp.
+Dit document beschrijft de actuele structuur en rekengang van de Python webapp.
 
 ## 1. Invoerstructuur
 
@@ -9,169 +9,103 @@ Dit document beschrijft de actuele gegevensstructuur en rekenstappen in de webap
 - `household_id` (string)
 - `fiscal_partner` (boolean)
 - `children_count` (number)
-- `joint_distribution` (object met verdeling van gezamenlijke posten per `member_id`)
 - `household_box1.own_home`: `{ has_own_home, woz_value, period_fraction }`
-- `box3_household` (object)
-- `members` (array)
+- `box3_household`
+- `joint_distribution`
+- `members[]`
 
 `joint_distribution` bevat:
 
-- `eigenwoningforfait`: `{ member_id: amount }`
-- `aftrek_geen_of_kleine_eigenwoningschuld`: `{ member_id: amount }`
-- `grondslag_voordeel_sparen_beleggen`: `{ member_id: amount }`
-- `vrijstelling_groene_beleggingen`: `{ member_id: amount }`
-- `ingehouden_dividendbelasting`: `{ member_id: amount }`
+- `eigenwoningforfait`
+- `aftrek_geen_of_kleine_eigenwoningschuld`
+- `grondslag_voordeel_sparen_beleggen`
+- `vrijstelling_groene_beleggingen`
+- `ingehouden_dividendbelasting`
+- `ingehouden_buitenlandse_dividendbelasting`
 
-### 1.2 Persoon (`members[]`)
+### 1.2 Box 3 huishouden
 
-- `member_id` (string)
-- `full_name` (string)
-- `bsn` (string)
-- `wage_withholding` (number)
-- `dividend_withholding` (number, optioneel)
-- `other_prepaid_taxes` (number, optioneel)
-- `box1` (object)
-- `box2` (object)
+- `savings_accounts[]`: `{ name, amount, is_green }`
+- `investment_accounts[]`: `{ name, amount, is_green, dividend_withholding, foreign_dividend_withholding }`
+- `other_assets_items[]`: `{ name, amount }`
+- `debt_items[]`: `{ name, amount }`
+- `total_dividend_withholding`
+- `total_foreign_dividend_withholding`
 
-### 1.3 Box 1
+## 2. Berekening (hoofdlijnen)
 
-- `box1.incomes[]`: `{ type, amount, labor_credit, source }`
-- `box1.deductions[]`: `{ type, name, amount }`
-- `box1.has_aow`: boolean (ontvangt al AOW)
-- `box1.tax_credits[]`: `{ name, amount }`
-
-### 1.4 Box 2
-
-- `box2.has_substantial_interest` (boolean)
-- `box2.dividend_income` (number)
-- `box2.sale_gain` (number)
-- `box2.acquisition_price` (number)
-
-### 1.5 Box 3 (huishouden)
-
-- `box3_household.savings_accounts[]`: `{ name, amount, is_green }`
-- `box3_household.investment_accounts[]`: `{ name, amount, is_green, dividend_withholding }`
-- `box3_household.other_assets_items[]`: `{ name, amount }`
-- `box3_household.debt_items[]`: `{ name, amount }`
-
-## 2. Berekeningsstappen
-
-### 2.1 Box 1 (per persoon)
-
-1. Per inkomensregel: `net_line_income = amount - labor_credit`.
-1. `gross_income = sum(amount)`.
-1. Huishoudelijk eigenwoningforfait op basis van WOZ en periode.
-1. Eigenwoningforfait per persoon volgens `joint_distribution.eigenwoningforfait` (bijtelling).
-1. Aftrek geen/kleine eigenwoningschuld per persoon volgens `joint_distribution.aftrek_geen_of_kleine_eigenwoningschuld`.
-1. `deductions = sum(deductions.amount)`.
-1. `taxable_income = max(0, gross_income + eigenwoningforfait_share - aftrek_geen_of_kleine_eigenwoningschuld_share - deductions)`.
-1. Box 1 belasting via progressieve schijven.
-
-### 2.2 Box 2 (per persoon)
-
-Als `has_substantial_interest = true`:
-
-- `box2_taxable_income = max(0, dividend_income + sale_gain - acquisition_price)`
-- `box2_tax = box2_taxable_income * box2_rate`
-
-Anders:
-
-- `box2_taxable_income = 0`
-- `box2_tax = 0`
-
-### 2.3 Box 3 (huishouden)
-
-`Groen sparen` en `groene beleggingen` tellen niet mee in de totale grondslag voor sparen/beleggen.
-
-1. Vermogenscomponenten:
-
-- `gross_assets = savings + investments + other_assets`
-- `total_debts = sum(abs(debt_items.amount))`
-- `total_net_assets = max(0, gross_assets - total_debts)`
-
-1. Fictief rendement:
-
-- `deemed_return_savings = net_savings * savings_return_rate`
-- `deemed_return_non_savings = net_non_savings * investment_return_rate`
-- `deemed_return_total = deemed_return_savings + deemed_return_non_savings`
-
-1. Correctie heffingsvrij vermogen:
-
-- `corrected_assets = max(total_net_assets - tax_free_assets, 0)`
-- `correction_factor = corrected_assets / total_net_assets`
-- `deemed_income_before_debts = deemed_return_total * correction_factor`
-
-1. Schulden als negatieve inkomenspost:
-
-- `debt_negative_income_post = -total_debts`
-- `box3_income = deemed_income_before_debts + debt_negative_income_post`
-- `box3_taxable_income = max(0, box3_income)`
-- `box3_tax = box3_taxable_income * box3_rate`
-
-1. Gezamenlijke grondslag wordt verdeeld volgens `joint_distribution.grondslag_voordeel_sparen_beleggen`.
-1. Vrijstelling groene beleggingen wordt verdeeld volgens `joint_distribution.vrijstelling_groene_beleggingen`.
-1. Per persoon:
-
-- `box3_taxable_income_member = max(0, grondslag_share - green_exemption_share)`
-- `box3_tax_member = box3_taxable_income_member * box3_rate`
-
-### 2.4 Premies volksverzekeringen
-
-Op basis van Box 1 belastbaar inkomen per persoon:
-
-- `AOW = 17.9%`, behalve `0%` bij `box1.has_aow = true`
-- `Anw = 0.1%`
-- `Wlz = 9.65%`
-
-### 2.5 Totale belasting en verrekening
-
-- `box1_box3_tax = box1_total + box3_tax`
-- `gross_income_tax = box1_box3_tax + box2_total + premie_totaal`
-- `total_tax_credits = sum(member credits)`
-- `dividend_withholding` per persoon komt uit `joint_distribution.ingehouden_dividendbelasting`
-- `total_prepaid_taxes = sum(wage_withholding + dividend_withholding + other_prepaid_taxes)`
+### 2.1 Box 1
 
 Per persoon:
 
-- `gross_income_tax_member = box1_tax + box2_tax + box3_tax + premium_total`
-- `net_settlement_member = gross_income_tax_member - tax_credits - prepaid_taxes`
+- `gross_income = sum(incomes.amount)`
+- `box1_taxable_income = max(0, gross_income + eigenwoningforfait_share - small_debt_deduction_share - deductions)`
+- Schijftarief-berekening op `box1_taxable_income`
 
 Huishouden:
 
-- `net_settlement = sum(net_settlement_member)`
-- `net_settlement = gross_income_tax - total_tax_credits - total_prepaid_taxes`
+- Eigenwoningforfait op huishoudniveau uit WOZ/periode
+- Aftrek geen/kleine eigenwoningschuld = `round_up(eigenwoningforfait * 76.667%)`
 
-Interpretatie:
+### 2.2 Box 2
 
-- `net_settlement >= 0` -> `TE_BETALEN`
-- `net_settlement < 0` -> `TERUGGAAF`
+- Alleen actief bij `has_substantial_interest = true`
+- `box2_taxable_income = max(0, dividend_income + sale_gain - acquisition_price)`
+- `box2_tax = box2_taxable_income * box2_rate`
+
+### 2.3 Box 3
+
+Huishouden:
+
+- Vermogen uit sparen/beleggen/overig minus schulden
+- Fictief rendement op sparen en beleggen
+- Correctie met heffingsvrij vermogen
+- `box3_taxable_income = max(0, corrected_deemed_return)`
+
+Partners:
+
+- Verdeling van `grondslag_voordeel_sparen_beleggen`
+- Toerekening van Box 3 belastbaar inkomen op basis van verdeelde grondslag
+- `box3_tax_before_foreign_dividend = box3_taxable_member * box3_rate`
+- `foreign_dividend_tax_credit_applied = min(box3_tax_before_foreign_dividend, foreign_dividend_withholding_share)`
+- `box3_tax_member = max(0, box3_tax_before_foreign_dividend - foreign_dividend_tax_credit_applied)`
+
+### 2.4 Groene beleggingen
+
+- Vrijstelling groene beleggingen is een verdeelpost
+- Daarnaast wordt heffingskorting groene beleggingen toegevoegd:
+- `credit = round_up(min(green_exemption_share, cap_single) * rate)`
+
+### 2.5 Voorheffingen en eindafrekening
+
+Per persoon:
+
+- `prepaid_taxes = wage_withholding + ingehouden_dividendbelasting + other_prepaid_taxes`
+- `gross_member_tax = box1_tax + box2_tax + box3_tax_member + premiums`
+- `net_member_settlement_before_threshold = gross_member_tax - tax_credits - prepaid_taxes`
+- Kleine aanslag-regel: als `0 <= net <= 57`, dan `net = 0` en resultaat `NIETS_TE_BETALEN`
+
+Huishouden:
+
+- `settlement.net_settlement` is de som van partner-nettoresultaten na drempeltoepassing
 
 ## 3. Outputvelden
 
-### 3.1 Response hoofdvelden
+Belangrijkste response-onderdelen:
 
-- `success`
-- `tax_year`
-- `fiscal_partner`
-- `joint_distribution`
-- `joint_distribution_totals`
 - `members[]`
-- `box1`
-- `box2`
-- `box3`
-- `settlement`
+- `joint_distribution`, `joint_distribution_totals`
+- `box1`, `box2`, `box3` totaalblokken
+- `settlement` huishouden
 - `verzamelinkomen`
-- `input_saved_to`
 
-### 3.2 Settlement-object
+Extra relevante velden:
 
-- `gross_income_tax`
-- `total_tax_credits`
-- `total_prepaid_taxes`
-- `net_settlement`
-- `result_type`
-- `effective_rate`
+- `members[].settlement.net_settlement_before_assessment_threshold`
+- `members[].settlement.assessment_threshold_applied`
+- `members[].box3.tax_before_foreign_dividend`
+- `members[].box3.foreign_dividend_tax_credit_applied`
 
-## 4. Opmerking
+## 4. Opmerking Buitenlandse Dividendbelasting
 
-De checklist-uitvoer is verwijderd uit API-response en UI.
+Buitenlandse dividendbelasting wordt in dit programma als netto invoer/verrekenpost behandeld. De uitgebreide verdrags- en bronstaatberekening valt buiten scope.

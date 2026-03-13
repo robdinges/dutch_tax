@@ -68,6 +68,8 @@ TAX_CONFIG_2025 = TaxYearConfig(
     premium_anw_rate=Decimal("0.0010"),
     premium_wlz_rate=Decimal("0.0965"),
     premium_income_cap=Decimal("38441"),
+    green_investment_tax_credit_rate=Decimal("0.0010"),
+    green_investment_credit_base_cap_single=Decimal("26312"),
     general_tax_credit=Decimal(2_917),  # 2025 general tax credit
     description="Dutch tax year 2025 - Realistic rates"
 )

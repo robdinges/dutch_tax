@@ -19,6 +19,7 @@ app.config["SECRET_KEY"] = "dutch-tax-calculator-secret"
 
 BOX2_RATE_2025 = Decimal("0.269")
 SMALL_OWN_HOME_DEBT_DEDUCTION_RATE = Decimal("0.76667")
+SMALL_PAYABLE_ASSESSMENT_THRESHOLD = Decimal("57")
 
 
 def dec(value: object, default: str = "0") -> Decimal:
@@ -123,6 +124,33 @@ def split_equal(member_ids: list[str], total: Decimal) -> dict[str, Decimal]:
     return allocation
 
 
+def allocate_by_weights(
+    member_ids: list[str],
+    total: Decimal,
+    weights: dict[str, Decimal],
+) -> dict[str, Decimal]:
+    """Allocate a total by member weights while preserving the exact sum via last-member remainder."""
+    if not member_ids:
+        return {}
+
+    total_weight = sum((max(Decimal("0"), weights.get(member_id, Decimal("0"))) for member_id in member_ids), Decimal("0"))
+    if total_weight <= 0:
+        return split_equal(member_ids, total)
+
+    allocation: dict[str, Decimal] = {}
+    running = Decimal("0")
+    for idx, member_id in enumerate(member_ids):
+        if idx == len(member_ids) - 1:
+            amount = total - running
+        else:
+            ratio = max(Decimal("0"), weights.get(member_id, Decimal("0"))) / total_weight
+            amount = round_down_euro(total * ratio)
+            running += amount
+        allocation[member_id] = amount
+
+    return allocation
+
+
 def normalize_joint_distribution(
     member_ids: list[str],
     shared_totals: dict[str, Decimal],
@@ -159,6 +187,26 @@ def normalize_joint_distribution(
             distribution[item_key] = split_equal(member_ids, total_amount)
 
     return distribution, errors
+
+
+def compute_green_investment_credit(green_exemption_share: Decimal, config) -> Decimal:
+    """Compute taxpayer-favorable green investment tax credit per member."""
+    green_credit_base_capped = min(green_exemption_share, config.green_investment_credit_base_cap_single)
+    return round_up_euro(green_credit_base_capped * config.green_investment_tax_credit_rate)
+
+
+def apply_small_payable_threshold(net_amount: Decimal) -> tuple[Decimal, bool]:
+    """Apply small payable assessment rule: payable amounts up to threshold become zero."""
+    if Decimal("0") <= net_amount <= SMALL_PAYABLE_ASSESSMENT_THRESHOLD:
+        return Decimal("0"), True
+    return net_amount, False
+
+
+def settlement_result_type(net_settlement: Decimal) -> str:
+    """Return settlement label used in responses."""
+    if net_settlement == 0:
+        return "NIETS_TE_BETALEN"
+    return "TE_BETALEN" if net_settlement > 0 else "TERUGGAAF"
 
 
 @app.route("/")
@@ -249,6 +297,10 @@ def preview_joint_items():
                 (round_up_euro(dec(account.get("dividend_withholding"))) for account in member_investment_accounts),
                 Decimal("0"),
             )
+            account_foreign_dividend_withholding_total = sum(
+                (round_up_euro(dec(account.get("foreign_dividend_withholding"))) for account in member_investment_accounts),
+                Decimal("0"),
+            )
             member_box3_inputs.append(
                 {
                     "savings": round_down_euro(dec(box3_data.get("savings"))),
@@ -267,6 +319,11 @@ def preview_joint_items():
                             dec(member.get("dividend_withholding", member.get("box2", {}).get("withheld_dividend_tax", "0")))
                         )
                     ),
+                    "direct_foreign_dividend_withholding": (
+                        account_foreign_dividend_withholding_total
+                        if member_investment_accounts
+                        else round_up_euro(dec(member.get("foreign_dividend_withholding", "0")))
+                    ),
                 }
             )
 
@@ -280,7 +337,8 @@ def preview_joint_items():
             if household_has_own_home
             else Decimal("0")
         )
-        household_small_own_home_debt_deduction = round_down_euro(
+        # This deduction is taxpayer-favorable and should round up to whole euros.
+        household_small_own_home_debt_deduction = round_up_euro(
             household_eigenwoningforfait * SMALL_OWN_HOME_DEBT_DEDUCTION_RATE
         )
 
@@ -355,9 +413,20 @@ def preview_joint_items():
                     household_box3.get("total_dividend_withholding", "0"),
                 )
             ))
+            household_foreign_dividend_withholding_total = round_up_euro(dec(
+                data.get(
+                    "foreign_dividend_withholding_total",
+                    household_box3.get("total_foreign_dividend_withholding", "0"),
+                )
+            ))
             if not household_dividend_withholding_total and investment_accounts:
                 household_dividend_withholding_total = sum(
                     (round_up_euro(dec(account.get("dividend_withholding"))) for account in investment_accounts),
+                    Decimal("0"),
+                )
+            if not household_foreign_dividend_withholding_total and investment_accounts:
+                household_foreign_dividend_withholding_total = sum(
+                    (round_up_euro(dec(account.get("foreign_dividend_withholding"))) for account in investment_accounts),
                     Decimal("0"),
                 )
         else:
@@ -368,6 +437,10 @@ def preview_joint_items():
             total_green_investments = sum((m["green_investments"] for m in member_box3_inputs), Decimal("0"))
             household_dividend_withholding_total = sum(
                 (m["direct_dividend_withholding"] for m in member_box3_inputs),
+                Decimal("0"),
+            )
+            household_foreign_dividend_withholding_total = sum(
+                (m["direct_foreign_dividend_withholding"] for m in member_box3_inputs),
                 Decimal("0"),
             )
 
@@ -396,8 +469,9 @@ def preview_joint_items():
             "eigenwoningforfait": household_eigenwoningforfait,
             "aftrek_geen_of_kleine_eigenwoningschuld": household_small_own_home_debt_deduction,
             "grondslag_voordeel_sparen_beleggen": grondslag_sparen_beleggen,
-            "vrijstelling_groene_beleggingen": min(total_green_investments, box3_taxable_income),
+            "vrijstelling_groene_beleggingen": total_green_investments,
             "ingehouden_dividendbelasting": household_dividend_withholding_total,
+            "ingehouden_buitenlandse_dividendbelasting": household_foreign_dividend_withholding_total,
         }
 
         return jsonify(
@@ -436,7 +510,8 @@ def calculate_tax():
             if household_has_own_home
             else Decimal("0")
         )
-        household_small_own_home_debt_deduction = round_down_euro(
+        # This deduction is taxpayer-favorable and should round up to whole euros.
+        household_small_own_home_debt_deduction = round_up_euro(
             household_eigenwoningforfait * SMALL_OWN_HOME_DEBT_DEDUCTION_RATE
         )
 
@@ -480,6 +555,10 @@ def calculate_tax():
                 (round_up_euro(dec(account.get("dividend_withholding"))) for account in member_investment_accounts),
                 Decimal("0"),
             )
+            account_foreign_dividend_withholding_total = sum(
+                (round_up_euro(dec(account.get("foreign_dividend_withholding"))) for account in member_investment_accounts),
+                Decimal("0"),
+            )
 
             member_inputs.append(
                 {
@@ -513,6 +592,11 @@ def calculate_tax():
                             else round_up_euro(
                                 dec(member.get("dividend_withholding", box2_data.get("withheld_dividend_tax", "0")))
                             )
+                        ),
+                        "direct_foreign_dividend_withholding": (
+                            account_foreign_dividend_withholding_total
+                            if member_investment_accounts
+                            else round_up_euro(dec(member.get("foreign_dividend_withholding", "0")))
                         ),
                     },
                 }
@@ -587,9 +671,20 @@ def calculate_tax():
                     household_box3.get("total_dividend_withholding", "0"),
                 )
             ))
+            household_foreign_dividend_withholding_total = round_up_euro(dec(
+                data.get(
+                    "foreign_dividend_withholding_total",
+                    household_box3.get("total_foreign_dividend_withholding", "0"),
+                )
+            ))
             if not household_dividend_withholding_total and investment_accounts:
                 household_dividend_withholding_total = sum(
                     (round_up_euro(dec(account.get("dividend_withholding"))) for account in investment_accounts),
+                    Decimal("0"),
+                )
+            if not household_foreign_dividend_withholding_total and investment_accounts:
+                household_foreign_dividend_withholding_total = sum(
+                    (round_up_euro(dec(account.get("foreign_dividend_withholding"))) for account in investment_accounts),
                     Decimal("0"),
                 )
         else:
@@ -600,6 +695,10 @@ def calculate_tax():
             total_green_investments = sum((m["box3_input"]["green_investments"] for m in member_inputs), Decimal("0"))
             household_dividend_withholding_total = sum(
                 (m["box3_input"]["direct_dividend_withholding"] for m in member_inputs),
+                Decimal("0"),
+            )
+            household_foreign_dividend_withholding_total = sum(
+                (m["box3_input"]["direct_foreign_dividend_withholding"] for m in member_inputs),
                 Decimal("0"),
             )
 
@@ -633,8 +732,9 @@ def calculate_tax():
             "eigenwoningforfait": household_eigenwoningforfait,
             "aftrek_geen_of_kleine_eigenwoningschuld": household_small_own_home_debt_deduction,
             "grondslag_voordeel_sparen_beleggen": grondslag_sparen_beleggen,
-            "vrijstelling_groene_beleggingen": min(total_green_investments, box3_taxable_income),
+            "vrijstelling_groene_beleggingen": total_green_investments,
             "ingehouden_dividendbelasting": household_dividend_withholding_total,
+            "ingehouden_buitenlandse_dividendbelasting": household_foreign_dividend_withholding_total,
         }
         joint_distribution_raw = data.get("joint_distribution", {})
         requires_distribution = fiscal_partner and len(member_ids) >= 2
@@ -673,6 +773,42 @@ def calculate_tax():
                     running_allocated += allocated_income
                 box3_taxable_income_allocated[member_id] = allocated_income
 
+        total_partner_wealth = sum(
+            (joint_distribution["grondslag_voordeel_sparen_beleggen"].get(member_id, Decimal("0")) for member_id in member_ids),
+            Decimal("0"),
+        )
+        partner_wealth_weights = {
+            member_id: joint_distribution["grondslag_voordeel_sparen_beleggen"].get(member_id, Decimal("0"))
+            for member_id in member_ids
+        }
+        if total_partner_wealth <= 0:
+            partner_share_pct = {
+                member_id: (Decimal("100") / Decimal(len(member_ids)) if member_ids else Decimal("0"))
+                for member_id in member_ids
+            }
+        else:
+            partner_share_pct = {
+                member_id: (partner_wealth_weights[member_id] / total_partner_wealth) * Decimal("100")
+                for member_id in member_ids
+            }
+
+        grondslag_rendementsberekening_total = total_savings + total_investments
+        grondslag_rendementsberekening_partner = allocate_by_weights(
+            member_ids,
+            grondslag_rendementsberekening_total,
+            partner_wealth_weights,
+        )
+        grondslag_sparen_beleggen_partner = allocate_by_weights(
+            member_ids,
+            grondslag_sparen_beleggen,
+            partner_wealth_weights,
+        )
+        fictief_rendement_partner = allocate_by_weights(
+            member_ids,
+            deemed_return_total,
+            partner_wealth_weights,
+        )
+
         member_results: list[dict] = []
         box1_total = Decimal("0")
         box2_total = Decimal("0")
@@ -688,6 +824,7 @@ def calculate_tax():
         box2_taxable_income_total = Decimal("0")
         box3_taxable_income_total = Decimal("0")
         total_gross_income = Decimal("0")
+        total_member_net_settlement = Decimal("0")
 
         for member in member_inputs:
             member_id = member["member_id"]
@@ -743,7 +880,25 @@ def calculate_tax():
                 box1_brackets_applied_totals[desc]["taxable_amount"] += dec(row["taxable_amount"])
                 box1_brackets_applied_totals[desc]["tax_amount"] += dec(row["tax_amount"])
 
-            total_member_credits = sum((round_up_euro(dec(c.get("amount"))) for c in member["tax_credits"]), Decimal("0"))
+            manual_credit_items = [
+                {
+                    "name": c.get("name", "Heffingskorting"),
+                    "amount": round_up_euro(dec(c.get("amount"))),
+                }
+                for c in member["tax_credits"]
+            ]
+            total_member_credits = sum((item["amount"] for item in manual_credit_items), Decimal("0"))
+
+            green_exemption_share = joint_distribution["vrijstelling_groene_beleggingen"].get(member_id, Decimal("0"))
+            green_investment_credit = compute_green_investment_credit(green_exemption_share, config)
+            if green_investment_credit > 0:
+                manual_credit_items.append(
+                    {
+                        "name": "Heffingskorting groene beleggingen",
+                        "amount": green_investment_credit,
+                    }
+                )
+            total_member_credits += green_investment_credit
             total_tax_credits += total_member_credits
 
             box2_data = member["box2"]
@@ -758,10 +913,15 @@ def calculate_tax():
             box2_total += box2_tax
 
             grondslag_share = joint_distribution["grondslag_voordeel_sparen_beleggen"].get(member_id, Decimal("0"))
-            green_exemption_share = joint_distribution["vrijstelling_groene_beleggingen"].get(member_id, Decimal("0"))
             box3_taxable_member = box3_taxable_income_allocated.get(member_id, Decimal("0"))
             box3_taxable_income_total += box3_taxable_member
-            box3_tax_member = round_down_euro(box3_taxable_member * config.box3_rate)
+            box3_tax_before_foreign_dividend = round_down_euro(box3_taxable_member * config.box3_rate)
+            foreign_dividend_withholding = joint_distribution["ingehouden_buitenlandse_dividendbelasting"].get(
+                member_id,
+                Decimal("0"),
+            )
+            foreign_dividend_offset = min(box3_tax_before_foreign_dividend, round_up_euro(foreign_dividend_withholding))
+            box3_tax_member = max(Decimal("0"), box3_tax_before_foreign_dividend - foreign_dividend_offset)
             box3_total += box3_tax_member
 
             dividend_withholding = joint_distribution["ingehouden_dividendbelasting"].get(member_id, Decimal("0"))
@@ -771,7 +931,13 @@ def calculate_tax():
             total_prepaid_taxes += prepaid_taxes
 
             gross_member_tax = round_down_euro(box1_tax + box2_tax + box3_tax_member + premium_member_total)
-            net_member_settlement = round_down_euro(gross_member_tax - total_member_credits - prepaid_taxes)
+            net_member_settlement_before_threshold = round_down_euro(
+                gross_member_tax - total_member_credits - prepaid_taxes
+            )
+            net_member_settlement, threshold_applied = apply_small_payable_threshold(
+                net_member_settlement_before_threshold
+            )
+            total_member_net_settlement += net_member_settlement
 
             member_results.append(
                 {
@@ -790,10 +956,10 @@ def calculate_tax():
                         "credits": {
                             "items": [
                                 {
-                                    "name": c.get("name", "Heffingskorting"),
-                                    "amount": float(round_up_euro(dec(c.get("amount")))),
+                                    "name": c["name"],
+                                    "amount": float(c["amount"]),
                                 }
-                                for c in member["tax_credits"]
+                                for c in manual_credit_items
                             ],
                             "total": float(total_member_credits),
                         },
@@ -805,9 +971,23 @@ def calculate_tax():
                         "tax": float(box2_tax),
                     },
                     "box3": {
+                        "grondslag_rendementsberekening": float(
+                            grondslag_rendementsberekening_partner.get(member_id, Decimal("0"))
+                        ),
+                        "grondslag_sparen_beleggen": float(
+                            grondslag_sparen_beleggen_partner.get(member_id, Decimal("0"))
+                        ),
+                        "fictief_rendement_totaal": float(deemed_return_total),
+                        "partner_share_percentage": float(partner_share_pct.get(member_id, Decimal("0"))),
+                        "fictief_rendement_partner": float(
+                            fictief_rendement_partner.get(member_id, Decimal("0"))
+                        ),
                         "grondslag_voordeel_sparen_beleggen": float(grondslag_share),
                         "vrijstelling_groene_beleggingen": float(green_exemption_share),
                         "taxable_income": float(box3_taxable_member),
+                        "tax_before_foreign_dividend": float(box3_tax_before_foreign_dividend),
+                        "foreign_dividend_withholding": float(foreign_dividend_withholding),
+                        "foreign_dividend_tax_credit_applied": float(foreign_dividend_offset),
                         "tax": float(box3_tax_member),
                     },
                     "prepayments": {
@@ -826,8 +1006,10 @@ def calculate_tax():
                         "gross_income_tax": float(gross_member_tax),
                         "tax_credits": float(total_member_credits),
                         "prepaid_taxes": float(prepaid_taxes),
+                        "net_settlement_before_assessment_threshold": float(net_member_settlement_before_threshold),
+                        "assessment_threshold_applied": threshold_applied,
                         "net_settlement": float(net_member_settlement),
-                        "result_type": "TE_BETALEN" if net_member_settlement >= 0 else "TERUGGAAF",
+                        "result_type": settlement_result_type(net_member_settlement),
                     },
                     "joint_allocation": {
                         "eigenwoningforfait": float(eigenwoningforfait_share),
@@ -835,6 +1017,7 @@ def calculate_tax():
                         "grondslag_voordeel_sparen_beleggen": float(grondslag_share),
                         "vrijstelling_groene_beleggingen": float(green_exemption_share),
                         "ingehouden_dividendbelasting": float(dividend_withholding),
+                        "ingehouden_buitenlandse_dividendbelasting": float(foreign_dividend_withholding),
                     },
                 }
             )
@@ -849,7 +1032,10 @@ def calculate_tax():
 
         box1_box3_tax = box1_total + box3_total
         gross_income_tax = round_down_euro(box1_box3_tax + total_premiums + box2_total)
-        net_settlement = round_down_euro(gross_income_tax - total_tax_credits - total_prepaid_taxes)
+        net_settlement_before_assessment_threshold = round_down_euro(
+            gross_income_tax - total_tax_credits - total_prepaid_taxes
+        )
+        net_settlement = round_down_euro(total_member_net_settlement)
         effective_rate = (
             float((gross_income_tax / total_gross_income) * Decimal("100"))
             if total_gross_income > 0
@@ -916,6 +1102,7 @@ def calculate_tax():
                     },
                     "green_investments_total": float(total_green_investments),
                     "green_exemption_total": float(shared_totals["vrijstelling_groene_beleggingen"]),
+                    "foreign_dividend_withholding_total": float(household_foreign_dividend_withholding_total),
                 },
                 "settlement": {
                     "box1_box3_tax": float(box1_box3_tax),
@@ -930,8 +1117,9 @@ def calculate_tax():
                     "gross_income_tax": float(gross_income_tax),
                     "total_tax_credits": float(total_tax_credits),
                     "total_prepaid_taxes": float(total_prepaid_taxes),
+                    "net_settlement_before_assessment_threshold": float(net_settlement_before_assessment_threshold),
                     "net_settlement": float(net_settlement),
-                    "result_type": "TE_BETALEN" if net_settlement >= 0 else "TERUGGAAF",
+                    "result_type": settlement_result_type(net_settlement),
                     "effective_rate": round(effective_rate, 2),
                 },
                 "verzamelinkomen": float(verzamelinkomen),
