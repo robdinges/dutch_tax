@@ -2,7 +2,7 @@
 """Regressietests voor huishouden LR – vastgelegde uitkomsten (2025).
 
 Dit testbestand legt de verwachte uitkomsten van huishouden LR vast als testset.
-De invoer staat in test_data/LR_input.json; de verwachte waarden zijn afgeleid
+De invoer staat in submissions/LR.json; de verwachte waarden zijn afgeleid
 van de berekening zoals die door de huidige implementatie wordt geproduceerd en
 zijn geverifieerd aan de hand van de documentatie in LR_aangifte_opbouw.md.
 
@@ -16,7 +16,7 @@ from pathlib import Path
 
 from app import app
 
-INPUT_FILE = Path(__file__).parent / "test_data" / "LR_input.json"
+INPUT_FILE = Path(__file__).parent / "submissions" / "LR.json"
 
 
 class LRHouseholdTests(unittest.TestCase):
@@ -24,7 +24,8 @@ class LRHouseholdTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.payload = json.loads(INPUT_FILE.read_text(encoding="utf-8"))
+        wrapper = json.loads(INPUT_FILE.read_text(encoding="utf-8"))
+        cls.payload = wrapper["data"]
         with app.test_client() as client:
             response = client.post("/api/calculate", json=cls.payload)
             assert response.status_code == 200, f"HTTP {response.status_code}"

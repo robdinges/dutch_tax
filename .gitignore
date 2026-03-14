@@ -14,3 +14,5 @@ dotnet/DutchTax.Web/publish/
 
 # Saved web form submissions (input payload snapshots)
 submissions/
+!submissions/LR.json
+!submissions/FRITS.json
