@@ -1,0 +1,121 @@
+{
+  "saved_at": "2026-03-14T21:49:18.245247",
+  "household_id": "Frits",
+  "data": {
+    "household_id": "Frits",
+    "fiscal_partner": false,
+    "children_count": 0,
+    "household_box1": {
+      "own_home": {
+        "has_own_home": false,
+        "woz_value": 0,
+        "period_fraction": 1
+      }
+    },
+    "dividend_withholding_total": 24,
+    "foreign_dividend_withholding_total": 0,
+    "box3_household": {
+      "savings_accounts": [
+        {
+          "name": "Sparen",
+          "amount": 69109,
+          "is_green": false
+        }
+      ],
+      "investment_accounts": [
+        {
+          "name": "Beleggen",
+          "amount": 49061,
+          "is_green": false,
+          "dividend_withholding": 24,
+          "foreign_dividend_withholding": 0
+        }
+      ],
+      "other_assets_items": [
+        {
+          "name": "Overige bezitting",
+          "amount": 0
+        }
+      ],
+      "debt_items": [
+        {
+          "name": "Schuld",
+          "amount": 0
+        }
+      ],
+      "savings": 69109,
+      "investments": 49061,
+      "other_assets": 0,
+      "debts": 0,
+      "total_dividend_withholding": 24,
+      "total_foreign_dividend_withholding": 0
+    },
+    "joint_distribution": {
+      "eigenwoningforfait": {
+        "000000001": 0
+      },
+      "aftrek_geen_of_kleine_eigenwoningschuld": {
+        "000000001": 0
+      },
+      "grondslag_voordeel_sparen_beleggen": {
+        "000000001": 60486
+      },
+      "vrijstelling_groene_beleggingen": {
+        "000000001": 0
+      },
+      "ingehouden_dividendbelasting": {
+        "000000001": 24
+      },
+      "ingehouden_buitenlandse_dividendbelasting": {
+        "000000001": 0
+      }
+    },
+    "members": [
+      {
+        "member_id": "000000001",
+        "full_name": "Frits",
+        "bsn": "000000001",
+        "wage_withholding": 0,
+        "box1": {
+          "incomes": [
+            {
+              "type": "PENSION",
+              "amount": 20192,
+              "labor_credit": 0,
+              "source": "AOW",
+              "description": "AOW"
+            }
+          ],
+          "deductions": [
+            {
+              "type": "PERSONAL_ALLOWANCE",
+              "name": "Beddengoed",
+              "amount": 360
+            }
+          ],
+          "has_aow": true,
+          "tax_credits": [
+            {
+              "name": "Algemeen",
+              "amount": 1536
+            },
+            {
+              "name": "Ouderen",
+              "amount": 2035
+            },
+            {
+              "name": "Alleenstaande",
+              "amount": 531
+            }
+          ]
+        },
+        "box2": {
+          "has_substantial_interest": false,
+          "dividend_income": 0,
+          "sale_gain": 0,
+          "acquisition_price": 0
+        }
+      }
+    ]
+  }
+}

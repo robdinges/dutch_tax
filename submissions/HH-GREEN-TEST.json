@@ -1,0 +1,77 @@
+{
+  "saved_at": "2026-03-11T19:54:10.336212",
+  "household_id": "HH-GREEN-TEST",
+  "data": {
+    "household_id": "HH-GREEN-TEST",
+    "fiscal_partner": false,
+    "allocation_strategy": "PROPORTIONAL",
+    "household_box1": {
+      "own_home": {
+        "has_own_home": false,
+        "woz_value": 0,
+        "period_fraction": 1
+      }
+    },
+    "box3_household": {
+      "savings_accounts": [
+        {
+          "name": "Normaal sparen",
+          "amount": 10000,
+          "is_green": false
+        },
+        {
+          "name": "Groen sparen",
+          "amount": 7000,
+          "is_green": true
+        }
+      ],
+      "investment_accounts": [
+        {
+          "name": "Normaal beleggen",
+          "amount": 9000,
+          "is_green": false,
+          "dividend_withholding": 0
+        },
+        {
+          "name": "Groene belegging",
+          "amount": 6000,
+          "is_green": true,
+          "dividend_withholding": 0
+        }
+      ],
+      "other_assets_items": [],
+      "debt_items": [],
+      "savings": 17000,
+      "investments": 15000,
+      "other_assets": 0,
+      "debts": 0,
+      "total_dividend_withholding": 0
+    },
+    "members": [
+      {
+        "member_id": "111",
+        "full_name": "A",
+        "bsn": "111",
+        "wage_withholding": 0,
+        "box1": {
+          "has_aow": false,
+          "incomes": [
+            {
+              "type": "EMPLOYMENT",
+              "amount": 1,
+              "labor_credit": 0
+            }
+          ],
+          "deductions": [],
+          "tax_credits": []
+        },
+        "box2": {
+          "has_substantial_interest": false,
+          "dividend_income": 0,
+          "sale_gain": 0,
+          "acquisition_price": 0
+        }
+      }
+    ]
+  }
+}

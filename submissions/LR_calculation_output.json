@@ -1,0 +1,308 @@
+{
+  "status": 200,
+  "result": {
+    "allocation_strategy": "PROPORTIONAL",
+    "box1": {
+      "brackets_applied": [
+        {
+          "description": "First bracket (8.17%)",
+          "rate": 0.0817,
+          "tax_amount": 6150.2943,
+          "taxable_amount": 75279.0
+        },
+        {
+          "description": "Second bracket (37.48%)",
+          "rate": 0.3748,
+          "tax_amount": 14383.3248,
+          "taxable_amount": 38376.0
+        },
+        {
+          "description": "Third bracket (49.50%)",
+          "rate": 0.495,
+          "tax_amount": 9040.185,
+          "taxable_amount": 18263.0
+        }
+      ],
+      "total_tax": 29573.0,
+      "total_taxable_income": 131918.0
+    },
+    "box2": {
+      "tax_rate": 26.9,
+      "total_tax": 0.0,
+      "total_taxable_income": 0.0
+    },
+    "box3": {
+      "allocation": {
+        "000000001": 270683.0,
+        "000000002": 12844.0
+      },
+      "corrected_deemed_return": 12848.0,
+      "correction_factor": 0.7107810326025645,
+      "debt_negative_income_post": 0.0,
+      "deemed_income_before_debts": 12848.0,
+      "deemed_return_non_savings": 16443.0,
+      "deemed_return_savings": 1633.0,
+      "deemed_return_total": 18076.0,
+      "foreign_dividend_withholding_total": 0.0,
+      "green_exemption_total": 5613.0,
+      "green_investments_total": 5613.0,
+      "investment_return_rate": 5.88,
+      "savings_return_rate": 1.37,
+      "tax_free_assets": 115368.0,
+      "tax_rate": 36.0,
+      "taxable_income": 12848.0,
+      "total_debts": 0.0,
+      "total_investments": 279648.0,
+      "total_net_assets": 398895.0,
+      "total_other_assets": 0.0,
+      "total_savings": 119247.0,
+      "total_tax": 4624.0
+    },
+    "fiscal_partner": true,
+    "input_saved_to": "/Users/robvandererve/Documents/python_projects/dutch_tax/submissions/LR.json",
+    "joint_distribution": {
+      "aftrek_geen_of_kleine_eigenwoningschuld": {
+        "000000001": 1017.0,
+        "000000002": 0.0
+      },
+      "eigenwoningforfait": {
+        "000000001": 1326.0,
+        "000000002": 0.0
+      },
+      "grondslag_voordeel_sparen_beleggen": {
+        "000000001": 270683.0,
+        "000000002": 12844.0
+      },
+      "ingehouden_buitenlandse_dividendbelasting": {
+        "000000001": 0.0,
+        "000000002": 0.0
+      },
+      "ingehouden_dividendbelasting": {
+        "000000001": 786.0,
+        "000000002": 0.0
+      },
+      "vrijstelling_groene_beleggingen": {
+        "000000001": 5359.0,
+        "000000002": 254.0
+      }
+    },
+    "joint_distribution_totals": {
+      "aftrek_geen_of_kleine_eigenwoningschuld": 1017.0,
+      "eigenwoningforfait": 1326.0,
+      "grondslag_voordeel_sparen_beleggen": 283527.0,
+      "ingehouden_buitenlandse_dividendbelasting": 0.0,
+      "ingehouden_dividendbelasting": 786.0,
+      "vrijstelling_groene_beleggingen": 5613.0
+    },
+    "members": [
+      {
+        "box1": {
+          "aftrek_geen_of_kleine_eigenwoningschuld": 1017.0,
+          "brackets": [
+            {
+              "description": "First bracket (8.17%)",
+              "lower_bound": 0.0,
+              "rate": 0.0817,
+              "tax_amount": 3140.6297,
+              "taxable_amount": 38441.0,
+              "upper_bound": 38441.0
+            },
+            {
+              "description": "Second bracket (37.48%)",
+              "lower_bound": 38441.0,
+              "rate": 0.3748,
+              "tax_amount": 14383.3248,
+              "taxable_amount": 38376.0,
+              "upper_bound": 76817.0
+            },
+            {
+              "description": "Third bracket (49.50%)",
+              "lower_bound": 76817.0,
+              "rate": 0.495,
+              "tax_amount": 9040.185,
+              "taxable_amount": 18263.0,
+              "upper_bound": null
+            }
+          ],
+          "credits": {
+            "items": [
+              {
+                "amount": 2234.0,
+                "name": "arbeidskorting"
+              },
+              {
+                "amount": 6.0,
+                "name": "Heffingskorting groene beleggingen"
+              }
+            ],
+            "total": 2240.0
+          },
+          "deductions": 0.0,
+          "eigenwoningforfait": 1326.0,
+          "gross_income": 94771.0,
+          "has_aow": false,
+          "labor_credit_total": 3267.0,
+          "tax": 26564.0,
+          "taxable_income": 95080.0
+        },
+        "box2": {
+          "has_substantial_interest": false,
+          "tax": 0.0,
+          "tax_rate": 26.9,
+          "taxable_income": 0.0
+        },
+        "box3": {
+          "fictief_rendement_partner": 17257.0,
+          "fictief_rendement_totaal": 18076.0,
+          "foreign_dividend_tax_credit_applied": 0.0,
+          "foreign_dividend_withholding": 0.0,
+          "grondslag_rendementsberekening": 380824.0,
+          "grondslag_sparen_beleggen": 270683.0,
+          "grondslag_voordeel_sparen_beleggen": 270683.0,
+          "partner_share_percentage": 95.46991997234831,
+          "tax": 4415.0,
+          "tax_before_foreign_dividend": 4415.0,
+          "taxable_income": 12265.0,
+          "vrijstelling_groene_beleggingen": 5359.0
+        },
+        "full_name": "R",
+        "joint_allocation": {
+          "aftrek_geen_of_kleine_eigenwoningschuld": 1017.0,
+          "eigenwoningforfait": 1326.0,
+          "grondslag_voordeel_sparen_beleggen": 270683.0,
+          "ingehouden_buitenlandse_dividendbelasting": 0.0,
+          "ingehouden_dividendbelasting": 786.0,
+          "vrijstelling_groene_beleggingen": 5359.0
+        },
+        "member_id": "000000001",
+        "premiums": {
+          "anw": 38.0,
+          "aow": 6880.0,
+          "total": 10627.0,
+          "wlz": 3709.0
+        },
+        "prepayments": {
+          "dividend_withholding": 786.0,
+          "other_prepaid_taxes": 0.0,
+          "total": 35575.0,
+          "wage_withholding": 34789.0
+        },
+        "settlement": {
+          "gross_income_tax": 41606.0,
+          "net_settlement": 3791.0,
+          "prepaid_taxes": 35575.0,
+          "result_type": "TE_BETALEN",
+          "tax_credits": 2240.0
+        }
+      },
+      {
+        "box1": {
+          "aftrek_geen_of_kleine_eigenwoningschuld": 0.0,
+          "brackets": [
+            {
+              "description": "First bracket (8.17%)",
+              "lower_bound": 0.0,
+              "rate": 0.0817,
+              "tax_amount": 3009.6646,
+              "taxable_amount": 36838.0,
+              "upper_bound": 38441.0
+            }
+          ],
+          "credits": {
+            "items": [
+              {
+                "amount": 3879.0,
+                "name": "arbeidskorting "
+              },
+              {
+                "amount": 2497.0,
+                "name": "algemene heffingskorting"
+              },
+              {
+                "amount": 1.0,
+                "name": "Heffingskorting groene beleggingen"
+              }
+            ],
+            "total": 6377.0
+          },
+          "deductions": 0.0,
+          "eigenwoningforfait": 0.0,
+          "gross_income": 36838.0,
+          "has_aow": false,
+          "labor_credit_total": 3075.0,
+          "tax": 3009.0,
+          "taxable_income": 36838.0
+        },
+        "box2": {
+          "has_substantial_interest": false,
+          "tax": 0.0,
+          "tax_rate": 26.9,
+          "taxable_income": 0.0
+        },
+        "box3": {
+          "fictief_rendement_partner": 819.0,
+          "fictief_rendement_totaal": 18076.0,
+          "foreign_dividend_tax_credit_applied": 0.0,
+          "foreign_dividend_withholding": 0.0,
+          "grondslag_rendementsberekening": 18071.0,
+          "grondslag_sparen_beleggen": 12844.0,
+          "grondslag_voordeel_sparen_beleggen": 12844.0,
+          "partner_share_percentage": 4.530080027651688,
+          "tax": 209.0,
+          "tax_before_foreign_dividend": 209.0,
+          "taxable_income": 583.0,
+          "vrijstelling_groene_beleggingen": 254.0
+        },
+        "full_name": "L",
+        "joint_allocation": {
+          "aftrek_geen_of_kleine_eigenwoningschuld": 0.0,
+          "eigenwoningforfait": 0.0,
+          "grondslag_voordeel_sparen_beleggen": 12844.0,
+          "ingehouden_buitenlandse_dividendbelasting": 0.0,
+          "ingehouden_dividendbelasting": 0.0,
+          "vrijstelling_groene_beleggingen": 254.0
+        },
+        "member_id": "000000002",
+        "premiums": {
+          "anw": 36.0,
+          "aow": 6594.0,
+          "total": 10184.0,
+          "wlz": 3554.0
+        },
+        "prepayments": {
+          "dividend_withholding": 0.0,
+          "other_prepaid_taxes": 0.0,
+          "total": 6968.0,
+          "wage_withholding": 6968.0
+        },
+        "settlement": {
+          "gross_income_tax": 13402.0,
+          "net_settlement": 57.0,
+          "prepaid_taxes": 6968.0,
+          "result_type": "TE_BETALEN",
+          "tax_credits": 6377.0
+        }
+      }
+    ],
+    "settlement": {
+      "box1_box3_tax": 34197.0,
+      "box2_tax": 0.0,
+      "effective_rate": 41.8,
+      "gross_income_tax": 55008.0,
+      "net_settlement": 3848.0,
+      "premiums": {
+        "anw": 74.0,
+        "aow": 13474.0,
+        "basis": 75279.0,
+        "total": 20811.0,
+        "wlz": 7263.0
+      },
+      "result_type": "TE_BETALEN",
+      "total_prepaid_taxes": 42543.0,
+      "total_tax_credits": 8617.0
+    },
+    "success": true,
+    "tax_year": 2025,
+    "verzamelinkomen": 144766.0
+  }
+}
