@@ -909,7 +909,6 @@ const app = {
         this.emptyState.classList.add("hidden");
 
         const settlement = result.settlement;
-        const box1 = result.box1;
         const box2 = result.box2;
         const box3 = result.box3;
 
@@ -918,37 +917,63 @@ const app = {
         document.getElementById("kpiRate").textContent = `${settlement.effective_rate.toFixed(2)}%`;
         document.getElementById("kpiVerzamel").textContent = this.currency(result.verzamelinkomen);
 
-        document.getElementById("box1Total").textContent = this.currency(box1.total_tax);
-
-        const box1Members = result.members.map((member) => {
+        // Per-person sections following the belastingdienst structure
+        const personsResults = result.members.map((member, index) => {
             const brackets = member.box1.brackets.map((row) => {
                 return `<li>${row.description}: ${this.currency(row.tax_amount)} over ${this.currency(row.taxable_amount)}</li>`;
             }).join("");
 
+            const creditItems = member.box1.credits.items.map((credit) => {
+                return `<div class="totals-row"><span>${credit.name}</span><strong>-${this.currency(credit.amount)}</strong></div>`;
+            }).join("");
+
+            const grossTaxAndPremiums = Number(member.box1.tax || 0)
+                + Number(member.box2.tax || 0)
+                + Number(member.box3.tax || 0)
+                + Number(member.premiums.total || 0);
+
             return `
-                <article class="member-result">
-                    <h4>${member.full_name}</h4>
-                    <div class="totals-row"><span>Belastbaar inkomen Box 1</span><strong>${this.currency(member.box1.taxable_income)}</strong></div>
-                    <div class="totals-row"><span>Eigenwoningforfait (bijtelling)</span><strong>${this.currency(member.box1.eigenwoningforfait)}</strong></div>
-                    <div class="totals-row"><span>Aftrek kleine/geen eigenwoningschuld</span><strong>${this.currency(member.box1.aftrek_geen_of_kleine_eigenwoningschuld)}</strong></div>
-                    <div class="totals-row"><span>Belasting Box 1</span><strong>${this.currency(member.box1.tax)}</strong></div>
-                    <div class="totals-row"><span>Belastbaar inkomen Box 2</span><strong>${this.currency(member.box2.taxable_income)}</strong></div>
-                    <div class="totals-row"><span>Belasting Box 2</span><strong>${this.currency(member.box2.tax)}</strong></div>
-                    <div class="totals-row"><span>Grondslag Box 3 (toegedeeld)</span><strong>${this.currency(member.box3.grondslag_voordeel_sparen_beleggen)}</strong></div>
-                    <div class="totals-row"><span>Vrijstelling groene beleggingen</span><strong>${this.currency(member.box3.vrijstelling_groene_beleggingen)}</strong></div>
-                    <div class="totals-row"><span>Belastbaar inkomen Box 3 (toegedeeld)</span><strong>${this.currency(member.box3.taxable_income)}</strong></div>
-                    <div class="totals-row"><span>Belasting Box 3</span><strong>${this.currency(member.box3.tax)}</strong></div>
-                    <div class="totals-row"><span>Buitenlandse dividendbelasting (toegedeeld)</span><strong>${this.currency(member.box3.foreign_dividend_withholding || 0)}</strong></div>
-                    <div class="totals-row"><span>Verrekening buitenlandse dividendbelasting op Box 3</span><strong>${this.currency(member.box3.foreign_dividend_tax_credit_applied || 0)}</strong></div>
-                    <div class="totals-row"><span>Premies totaal</span><strong>${this.currency(member.premiums.total)}</strong></div>
-                    <div class="totals-row"><span>Heffingskortingen totaal</span><strong>${this.currency(member.box1.credits.total)}</strong></div>
-                    <div class="totals-row"><span>Voorheffingen totaal</span><strong>${this.currency(member.prepayments.total)}</strong></div>
-                    <div class="totals-row final"><span>Eindafrekening partner</span><strong>${this.currency(member.settlement.net_settlement)}</strong></div>
-                    <ul>${brackets}</ul>
-                </article>
+                <section class="result-block">
+                    <h3>Persoon ${index + 1}: ${member.full_name}</h3>
+
+                    <article class="member-result">
+                        <h4>Box 1 - Werk en woning</h4>
+                        <div class="totals-row"><span>Bruto inkomen Box 1</span><strong>${this.currency(member.box1.gross_income)}</strong></div>
+                        <div class="totals-row"><span>Eigenwoningforfait (bijtelling)</span><strong>${this.currency(member.box1.eigenwoningforfait)}</strong></div>
+                        <div class="totals-row"><span>Aftrek geen/kleine eigenwoningschuld</span><strong>-${this.currency(member.box1.aftrek_geen_of_kleine_eigenwoningschuld)}</strong></div>
+                        <div class="totals-row"><span>Belastbaar inkomen Box 1</span><strong>${this.currency(member.box1.taxable_income)}</strong></div>
+                    </article>
+
+                    <article class="member-result">
+                        <h4>Berekening inkomstenbelasting en premie volksverzekeringen</h4>
+                        <div class="totals-row"><span>Belasting Box 1</span><strong>${this.currency(member.box1.tax)}</strong></div>
+                        ${brackets ? `<ul>${brackets}</ul>` : ""}
+                        <div class="totals-row"><span>Grondslag sparen en beleggen (toegedeeld)</span><strong>${this.currency(member.box3.grondslag_sparen_beleggen)}</strong></div>
+                        <div class="totals-row"><span>Aandeel (${(member.box3.partner_share_percentage || 0).toFixed(2)}%)</span><strong>${this.currency(member.box3.fictief_rendement_partner)}</strong></div>
+                        <div class="totals-row"><span>Vrijstelling groene beleggingen</span><strong>-${this.currency(member.box3.vrijstelling_groene_beleggingen)}</strong></div>
+                        <div class="totals-row"><span>Belastbaar inkomen Box 3 (toegedeeld)</span><strong>${this.currency(member.box3.taxable_income)}</strong></div>
+                        <div class="totals-row"><span>Belasting Box 3</span><strong>${this.currency(member.box3.tax_before_foreign_dividend || member.box3.tax)}</strong></div>
+                        <div class="totals-row"><span>Verrekening buitenlandse bronbelasting Box 3</span><strong>-${this.currency(member.box3.foreign_dividend_tax_credit_applied || 0)}</strong></div>
+                        <div class="totals-row"><span>Premie AOW</span><strong>${this.currency(member.premiums.aow)}</strong></div>
+                        <div class="totals-row"><span>Premie ANW</span><strong>${this.currency(member.premiums.anw)}</strong></div>
+                        <div class="totals-row"><span>Premie Wlz</span><strong>${this.currency(member.premiums.wlz)}</strong></div>
+                        <div class="totals-row"><span>Subtotaal belasting en premies</span><strong>${this.currency(grossTaxAndPremiums)}</strong></div>
+
+                        <h4>Heffingskortingen</h4>
+                        ${creditItems}
+                        <div class="totals-row"><span>Totaal heffingskortingen</span><strong>-${this.currency(member.box1.credits.total)}</strong></div>
+
+                        <h4>Voorheffingen</h4>
+                        <div class="totals-row"><span>Ingehouden loonheffing</span><strong>-${this.currency(member.prepayments.wage_withholding)}</strong></div>
+                        <div class="totals-row"><span>Ingehouden dividendbelasting</span><strong>-${this.currency(member.prepayments.dividend_withholding)}</strong></div>
+                        <div class="totals-row"><span>Totaal voorheffingen</span><strong>-${this.currency(member.prepayments.total)}</strong></div>
+
+                        <div class="totals-row final"><span>Eindafrekening ${member.full_name}</span><strong>${this.currency(member.settlement.net_settlement)}</strong></div>
+                    </article>
+                </section>
             `;
         }).join("");
-        document.getElementById("box1Members").innerHTML = box1Members;
+        document.getElementById("personsResults").innerHTML = personsResults;
 
         document.getElementById("box2Income").textContent = this.currency(box2.total_taxable_income);
         document.getElementById("box2Rate").textContent = `${box2.tax_rate.toFixed(2)}%`;
@@ -961,39 +986,21 @@ const app = {
         document.getElementById("box3Income").textContent = this.currency(box3.corrected_deemed_return);
         document.getElementById("box3Tax").textContent = this.currency(box3.total_tax);
 
-        const allocationRows = Object.entries(box3.allocation || {}).map(([memberId, amount]) => {
-            return `<div class="totals-row"><span>Toegedeelde grondslag Box 3 ${memberId}</span><strong>${this.currency(amount)}</strong></div>`;
+        const allocationRows = result.members.map((member) => {
+            return `<div class="totals-row"><span>Toegedeelde grondslag Box 3 ${member.full_name}</span><strong>${this.currency(box3.allocation && box3.allocation[member.member_id] || 0)}</strong></div>`;
         }).join("");
         document.getElementById("box3Allocation").innerHTML = allocationRows;
 
-        const summaryMembers = result.members.slice(0, 2);
-        // Add household 'Premies totaal' to summary
-        const householdPremiumsHtml = `
-            <div class="totals-row"><span>Premies totaal huishouden</span><strong>${this.currency(result.settlement.premiums.total)}</strong></div>
-        `;
-        const summaryHtml = summaryMembers.map((member, index) => {
+        // Overzicht: per person summary without duplication
+        const summaryOverviewHtml = result.members.map((member) => {
             return `
-                <article class="member-result">
-                    <h4>Partner ${index + 1}: ${member.full_name}</h4>
-                    <div class="totals-row"><span>Belasting Box 1</span><strong>${this.currency(member.box1.tax)}</strong></div>
-                    <div class="totals-row"><span>Belasting Box 2</span><strong>${this.currency(member.box2.tax)}</strong></div>
-                    <div class="totals-row"><span>Grondslag rendementsberekening</span><strong>${this.currency(member.box3.grondslag_rendementsberekening)}</strong></div>
-                    <div class="totals-row"><span>Grondslag sparen en beleggen</span><strong>${this.currency(member.box3.grondslag_sparen_beleggen)}</strong></div>
-                    <div class="totals-row"><span>Fictief rendement (totaal)</span><strong>${this.currency(member.box3.fictief_rendement_totaal)}</strong></div>
-                    <div class="totals-row"><span>Aandeel partner</span><strong>${(member.box3.partner_share_percentage || 0).toFixed(2)}%</strong></div>
-                    <div class="totals-row"><span>Fictief rendement partner</span><strong>${this.currency(member.box3.fictief_rendement_partner)}</strong></div>
-                    <div class="totals-row"><span>Belastbaar inkomen Box 3 (toegedeeld)</span><strong>${this.currency(member.box3.taxable_income)}</strong></div>
-                    <div class="totals-row"><span>Box 3 belasting voor verrekening buitenlands dividend</span><strong>${this.currency(member.box3.tax_before_foreign_dividend || member.box3.tax)}</strong></div>
-                    <div class="totals-row"><span>Verrekening buitenlands dividend</span><strong>${this.currency(member.box3.foreign_dividend_tax_credit_applied || 0)}</strong></div>
-                    <div class="totals-row"><span>Tarief Box 3</span><strong>${box3.tax_rate.toFixed(2)}%</strong></div>
-                    <div class="totals-row"><span>Belasting Box 3</span><strong>${this.currency(member.box3.tax)}</strong></div>
-                </article>
+                <div class="totals-row"><span>Te betalen inkomstenbelasting en premie ${member.full_name}</span><strong>${this.currency(member.settlement.net_settlement)}</strong></div>
             `;
         }).join("");
-        document.getElementById("summaryPartners").innerHTML = householdPremiumsHtml + summaryHtml;
+        document.getElementById("summaryOverview").innerHTML = summaryOverviewHtml;
 
-        const combinedTax = summaryMembers.reduce((sum, member) => {
-            return sum + Number(member.box1.tax || 0) + Number(member.box2.tax || 0) + Number(member.box3.tax || 0);
+        const combinedTax = result.members.reduce((sum, member) => {
+            return sum + Number(member.settlement.net_settlement || 0);
         }, 0);
         document.getElementById("summaryCombinedTax").textContent = this.currency(combinedTax);
 
