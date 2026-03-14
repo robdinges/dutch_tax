@@ -1,0 +1,86 @@
+{
+  "household_id": "FRITS",
+  "fiscal_partner": false,
+  "children_count": 0,
+  "household_box1": {
+    "own_home": {
+      "has_own_home": true,
+      "woz_value": 320000,
+      "period_fraction": 1
+    }
+  },
+  "box3_household": {
+    "savings_accounts": [
+      {
+        "name": "Spaarrekening",
+        "amount": 45000,
+        "is_green": false
+      }
+    ],
+    "investment_accounts": [
+      {
+        "name": "Beleggingsrekening",
+        "amount": 38000,
+        "is_green": false,
+        "dividend_withholding": 150,
+        "foreign_dividend_withholding": 0
+      },
+      {
+        "name": "Groene beleggingen",
+        "amount": 10000,
+        "is_green": true
+      }
+    ],
+    "other_assets_items": [],
+    "debt_items": []
+  },
+  "members": [
+    {
+      "member_id": "FRITS",
+      "full_name": "Frits",
+      "wage_withholding": 16500,
+      "box1": {
+        "incomes": [
+          {
+            "type": "EMPLOYMENT",
+            "amount": 58000,
+            "labor_credit": 5158,
+            "description": "Loon werkgever"
+          }
+        ],
+        "deductions": [],
+        "has_aow": false,
+        "tax_credits": []
+      },
+      "box2": {
+        "has_substantial_interest": false,
+        "dividend_income": 0,
+        "sale_gain": 0,
+        "acquisition_price": 0
+      },
+      "box3": {
+        "investment_accounts": []
+      }
+    }
+  ],
+  "joint_distribution": {
+    "eigenwoningforfait": {
+      "FRITS": 1120
+    },
+    "aftrek_geen_of_kleine_eigenwoningschuld": {
+      "FRITS": 859
+    },
+    "grondslag_voordeel_sparen_beleggen": {
+      "FRITS": 25316
+    },
+    "vrijstelling_groene_beleggingen": {
+      "FRITS": 10000
+    },
+    "ingehouden_dividendbelasting": {
+      "FRITS": 150
+    },
+    "ingehouden_buitenlandse_dividendbelasting": {
+      "FRITS": 0
+    }
+  }
+}
