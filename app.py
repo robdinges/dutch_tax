@@ -62,7 +62,7 @@ def compute_box1_bracket_breakdown(taxable_income: Decimal, brackets: list) -> l
         taxable_in_bracket = bracket.taxable_amount(taxable_income)
         if taxable_in_bracket <= 0:
             continue
-        tax_in_bracket = taxable_in_bracket * bracket.rate
+        tax_in_bracket = round_down_euro(taxable_in_bracket * bracket.rate)
         breakdown.append(
             {
                 "description": bracket.description,
