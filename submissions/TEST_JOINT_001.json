@@ -1,0 +1,106 @@
+{
+  "saved_at": "2026-03-13T10:13:08.016207",
+  "household_id": "TEST_JOINT_001",
+  "data": {
+    "box3_household": {
+      "debt_items": [],
+      "investment_accounts": [],
+      "other_assets_items": [],
+      "savings_accounts": []
+    },
+    "children_count": 0,
+    "fiscal_partner": true,
+    "household_box1": {
+      "own_home": {
+        "has_own_home": true,
+        "period_fraction": 1,
+        "woz_value": 500000
+      }
+    },
+    "household_id": "TEST_JOINT_001",
+    "joint_distribution": {
+      "aftrek_geen_of_kleine_eigenwoningschuld": {
+        "P1": 939.4,
+        "P2": 402.59999999999997
+      },
+      "eigenwoningforfait": {
+        "P1": 1225.0,
+        "P2": 525.0
+      },
+      "grondslag_voordeel_sparen_beleggen": {
+        "P1": 0,
+        "P2": 0
+      },
+      "ingehouden_dividendbelasting": {
+        "P1": 0,
+        "P2": 0
+      },
+      "vrijstelling_groene_beleggingen": {
+        "P1": 0,
+        "P2": 0
+      }
+    },
+    "members": [
+      {
+        "box1": {
+          "deductions": [
+            {
+              "amount": 3000,
+              "name": "Aftrek",
+              "type": "PERSONAL_ALLOWANCE"
+            }
+          ],
+          "has_aow": false,
+          "incomes": [
+            {
+              "amount": 50000,
+              "labor_credit": 2000,
+              "type": "EMPLOYMENT"
+            }
+          ],
+          "tax_credits": []
+        },
+        "box2": {
+          "acquisition_price": 0,
+          "dividend_income": 0,
+          "has_substantial_interest": false,
+          "sale_gain": 0
+        },
+        "bsn": "P1",
+        "full_name": "Partner 1",
+        "member_id": "P1",
+        "wage_withholding": 0
+      },
+      {
+        "box1": {
+          "deductions": [
+            {
+              "amount": 1000,
+              "name": "Aftrek",
+              "type": "PERSONAL_ALLOWANCE"
+            }
+          ],
+          "has_aow": false,
+          "incomes": [
+            {
+              "amount": 30000,
+              "labor_credit": 1000,
+              "type": "EMPLOYMENT"
+            }
+          ],
+          "tax_credits": []
+        },
+        "box2": {
+          "acquisition_price": 0,
+          "dividend_income": 0,
+          "has_substantial_interest": false,
+          "sale_gain": 0
+        },
+        "bsn": "P2",
+        "full_name": "Partner 2",
+        "member_id": "P2",
+        "wage_withholding": 0
+      }
+    ]
+  }
+}

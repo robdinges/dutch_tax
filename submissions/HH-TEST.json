@@ -1,0 +1,93 @@
+{
+  "saved_at": "2026-03-11T19:44:30.539868",
+  "household_id": "HH-TEST",
+  "data": {
+    "household_id": "HH-TEST",
+    "fiscal_partner": true,
+    "allocation_strategy": "PROPORTIONAL",
+    "household_box1": {
+      "own_home": {
+        "has_own_home": true,
+        "woz_value": 500000,
+        "period_fraction": 1
+      }
+    },
+    "box3_household": {
+      "savings_accounts": [
+        {
+          "name": "Spaar",
+          "amount": 50000
+        }
+      ],
+      "investment_accounts": [
+        {
+          "name": "Beleg",
+          "amount": 20000,
+          "dividend_withholding": 100
+        }
+      ],
+      "other_assets_items": [],
+      "debt_items": [
+        {
+          "name": "Lening",
+          "amount": -15000
+        }
+      ],
+      "savings": 50000,
+      "investments": 20000,
+      "other_assets": 0,
+      "debts": 15000,
+      "total_dividend_withholding": 100
+    },
+    "members": [
+      {
+        "member_id": "111",
+        "full_name": "A",
+        "bsn": "111",
+        "wage_withholding": 4000,
+        "box1": {
+          "has_aow": false,
+          "incomes": [
+            {
+              "type": "EMPLOYMENT",
+              "amount": 40000,
+              "labor_credit": 2000
+            }
+          ],
+          "deductions": [],
+          "tax_credits": []
+        },
+        "box2": {
+          "has_substantial_interest": false,
+          "dividend_income": 0,
+          "sale_gain": 0,
+          "acquisition_price": 0
+        }
+      },
+      {
+        "member_id": "222",
+        "full_name": "B",
+        "bsn": "222",
+        "wage_withholding": 2000,
+        "box1": {
+          "has_aow": true,
+          "incomes": [
+            {
+              "type": "PENSION",
+              "amount": 30000,
+              "labor_credit": 0
+            }
+          ],
+          "deductions": [],
+          "tax_credits": []
+        },
+        "box2": {
+          "has_substantial_interest": false,
+          "dividend_income": 0,
+          "sale_gain": 0,
+          "acquisition_price": 0
+        }
+      }
+    ]
+  }
+}
