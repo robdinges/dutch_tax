@@ -860,10 +860,10 @@ def calculate_tax():
 
             premium_basis_member = min(box1_taxable_income, config.premium_income_cap)
             premium_basis_total += premium_basis_member
-            premium_aow_member = Decimal("0") if member["has_aow"] else round_down_euro(premium_basis_member * config.premium_aow_rate)
-            premium_anw_member = round_down_euro(premium_basis_member * config.premium_anw_rate)
-            premium_wlz_member = round_down_euro(premium_basis_member * config.premium_wlz_rate)
-            premium_member_total = premium_aow_member + premium_anw_member + premium_wlz_member
+            premium_aow_member = Decimal("0") if member["has_aow"] else premium_basis_member * config.premium_aow_rate
+            premium_anw_member = premium_basis_member * config.premium_anw_rate
+            premium_wlz_member = premium_basis_member * config.premium_wlz_rate
+            premium_member_total = round_down_euro(premium_aow_member + premium_anw_member + premium_wlz_member)
             premium_aow_total += premium_aow_member
             premium_anw_total += premium_anw_member
             premium_wlz_total += premium_wlz_member

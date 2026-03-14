@@ -193,7 +193,7 @@ class GreenCreditAndForeignDividendTests(unittest.TestCase):
                     "member_id": "P2",
                     "full_name": "Partner 2",
                     "bsn": "P2",
-                    "wage_withholding": 6968,
+                    "wage_withholding": 6969,
                     "box1": {
                         "incomes": [
                             {"type": "EMPLOYMENT", "amount": 21822, "labor_credit": 3075},
