@@ -117,29 +117,11 @@ Voor dit programma is daarom gekozen voor een vereenvoudigde aanpak:
 
 ## Berekening Persoon 1 (Samenvatting)
 
-- Box 1 inkomen: `EUR 95.080`
-- Box 3 inkomen: `EUR 12.264`
-- Inkomstenbelasting box 1: `EUR 26.563`
-- Inkomstenbelasting box 3 (voor verrekening): `EUR 4.415`
-- Verrekening buitenlandse bronbelasting box 3: `EUR 4`
-- Inkomstenbelasting box 3 (na verrekening): `EUR 4.411`
-- Premie volksverzekeringen: `EUR 10.628`
-- Heffingskortingen: `EUR 2.240` (incl. groene beleggingen `EUR 6`)
-- Voorheffingen: `EUR 35.569` (`34.789` loon + `780` dividend)
-- Eindresultaat Persoon 1: `EUR 3.793` te betalen
+ - Premie volksverzekeringen: `EUR 10.628` (berekend zonder afronding per premie, alleen het totaal wordt naar beneden afgerond)
 
 ## Berekening Persoon 2 (Samenvatting)
 
-- Box 1 inkomen: `EUR 36.838`
-- Box 3 inkomen: `EUR 580`
-- Inkomstenbelasting box 1: `EUR 3.009`
-- Inkomstenbelasting box 3: `EUR 208`
-- Premie volksverzekeringen: `EUR 10.185`
-- Heffingskortingen: `EUR 6.377` (incl. groene beleggingen `EUR 1`)
-- Voorheffingen: `EUR 6.968`
-- Berekend resultaat voor drempel: `EUR 57` te betalen
-- Toegepaste aangifte-regel: `<= EUR 57` leidt tot `EUR 0` te betalen
-- Eindresultaat Persoon 2: `EUR 0`
+ - Premie volksverzekeringen: `EUR 10.185` (berekend zonder afronding per premie, alleen het totaal wordt naar beneden afgerond)
 
 ## Opmerking Over Gebruik
 

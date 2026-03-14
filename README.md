@@ -6,7 +6,7 @@ Deze applicatie rekent particuliere Nederlandse inkomstenbelasting door op basis
 2. Fiscale partner en huishouden bepalen
 3. Gegevens per box vastleggen
 4. Gezamenlijke posten verdelen over partners
-5. Box 1/2/3 en premies per partner berekenen
+5. Box 1/2/3 en premies per partner berekenen (premies volksverzekeringen: geen afronding per premie, alleen het totaal wordt naar beneden afgerond)
 6. Verrekeningen en eindafrekening bepalen
 
 ## Kernfunctionaliteit

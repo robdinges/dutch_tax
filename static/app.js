@@ -967,6 +967,10 @@ const app = {
         document.getElementById("box3Allocation").innerHTML = allocationRows;
 
         const summaryMembers = result.members.slice(0, 2);
+        // Add household 'Premies totaal' to summary
+        const householdPremiumsHtml = `
+            <div class="totals-row"><span>Premies totaal huishouden</span><strong>${this.currency(result.settlement.premiums.total)}</strong></div>
+        `;
         const summaryHtml = summaryMembers.map((member, index) => {
             return `
                 <article class="member-result">
@@ -986,7 +990,7 @@ const app = {
                 </article>
             `;
         }).join("");
-        document.getElementById("summaryPartners").innerHTML = summaryHtml;
+        document.getElementById("summaryPartners").innerHTML = householdPremiumsHtml + summaryHtml;
 
         const combinedTax = summaryMembers.reduce((sum, member) => {
             return sum + Number(member.box1.tax || 0) + Number(member.box2.tax || 0) + Number(member.box3.tax || 0);

@@ -5,7 +5,7 @@ ASP.NET Core versie van de Dutch Tax Calculator met dezelfde procesflow als de P
 Ondersteund in deze .NET-variant:
 
 - `POST /api/joint-items-preview` voor verplichte partnerverdeling
-- `POST /api/calculate` met Box 1/2/3, premies, heffingskortingen en eindafrekening
+	- `POST /api/calculate` met Box 1/2/3, premies (geen afronding per premie, alleen het totaal wordt naar beneden afgerond), heffingskortingen en eindafrekening
 - buitenlandse dividendverrekening en groene-beleggingenkorting
 - kleine-aanslagregel (`<= EUR 57` -> `NIETS_TE_BETALEN`)
 

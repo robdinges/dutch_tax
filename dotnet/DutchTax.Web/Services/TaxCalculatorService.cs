@@ -550,9 +550,9 @@ public sealed class TaxCalculatorService
 
             var premiumBasisMember = Math.Min(box1TaxableIncome, Config2025.PremiumIncomeCap);
             premiumBasisTotal += premiumBasisMember;
-            var premiumAowMember = member.HasAow ? 0m : RoundDownEuro(premiumBasisMember * Config2025.PremiumAowRate);
-            var premiumAnwMember = RoundDownEuro(premiumBasisMember * Config2025.PremiumAnwRate);
-            var premiumWlzMember = RoundDownEuro(premiumBasisMember * Config2025.PremiumWlzRate);
+            var premiumAowMember = member.HasAow ? 0m : premiumBasisMember * Config2025.PremiumAowRate;
+            var premiumAnwMember = premiumBasisMember * Config2025.PremiumAnwRate;
+            var premiumWlzMember = premiumBasisMember * Config2025.PremiumWlzRate;
             var premiumMemberTotal = premiumAowMember + premiumAnwMember + premiumWlzMember;
 
             premiumAowTotal += premiumAowMember;
@@ -722,7 +722,7 @@ public sealed class TaxCalculatorService
         }
 
         var verzamelinkomen = box1TaxableIncomeTotal + box2TaxableIncomeTotal + box3TaxableIncomeTotal;
-        var totalPremiums = premiumAowTotal + premiumAnwTotal + premiumWlzTotal;
+        var totalPremiums = RoundDownEuro(premiumAowTotal + premiumAnwTotal + premiumWlzTotal);
         var box1Box3Tax = box1Total + box3Total;
         var grossIncomeTax = RoundDownEuro(box1Box3Tax + totalPremiums + box2Total);
         var netSettlementBeforeAssessmentThreshold = RoundDownEuro(grossIncomeTax - totalTaxCredits - totalPrepaidTaxes);
