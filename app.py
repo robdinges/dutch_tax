@@ -7,6 +7,7 @@ from decimal import Decimal, ROUND_CEILING, ROUND_FLOOR
 import json
 from pathlib import Path
 import re
+import subprocess
 
 from flask import Flask, jsonify, render_template, request
 
@@ -62,7 +63,7 @@ def compute_box1_bracket_breakdown(taxable_income: Decimal, brackets: list) -> l
         taxable_in_bracket = bracket.taxable_amount(taxable_income)
         if taxable_in_bracket <= 0:
             continue
-        tax_in_bracket = taxable_in_bracket * bracket.rate
+        tax_in_bracket = round_down_euro(taxable_in_bracket * bracket.rate)
         breakdown.append(
             {
                 "description": bracket.description,
@@ -209,9 +210,25 @@ def settlement_result_type(net_settlement: Decimal) -> str:
     return "TE_BETALEN" if net_settlement > 0 else "TERUGGAAF"
 
 
+VERSION_TIMESTAMP_FORMAT = "%d-%m-%Y %H:%M"
+
+
 @app.route("/")
 def index():
-    return render_template("index.html")
+    try:
+        result = subprocess.run(
+            ["git", "log", "-1", "--format=%cd", f"--date=format:{VERSION_TIMESTAMP_FORMAT}"],
+            capture_output=True,
+            text=True,
+            cwd=Path(__file__).parent,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            version_timestamp = result.stdout.strip()
+        else:
+            version_timestamp = datetime.now().strftime(VERSION_TIMESTAMP_FORMAT)
+    except Exception:
+        version_timestamp = datetime.now().strftime(VERSION_TIMESTAMP_FORMAT)
+    return render_template("index.html", version_timestamp=version_timestamp)
 
 
 @app.route("/api/income-types")
