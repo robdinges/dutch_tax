@@ -223,7 +223,8 @@ class GreenCreditAndForeignDividendTests(unittest.TestCase):
             self.assertTrue(result.get("success"))
 
             by_id = {m["member_id"]: m for m in result["members"]}
-            self.assertEqual(by_id["P2"]["settlement"]["net_settlement_before_assessment_threshold"], 57.0)
+            self.assertEqual(by_id["P2"]["box3"]["taxable_income"], 580.0)
+            self.assertEqual(by_id["P2"]["settlement"]["net_settlement_before_assessment_threshold"], 56.0)
             self.assertTrue(by_id["P2"]["settlement"]["assessment_threshold_applied"])
             self.assertEqual(by_id["P2"]["settlement"]["net_settlement"], 0.0)
             self.assertEqual(by_id["P2"]["settlement"]["result_type"], "NIETS_TE_BETALEN")
