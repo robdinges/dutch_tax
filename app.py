@@ -757,20 +757,25 @@ def calculate_tax():
             taxable_grondslag_total += taxable_grondslag_share
 
         box3_taxable_income_allocated: dict[str, Decimal] = {}
+        gross_rendementsberekening = total_savings + total_investments
         if box3_taxable_income <= 0:
             box3_taxable_income_allocated = {member_id: Decimal("0") for member_id in member_ids}
-        elif taxable_grondslag_total <= 0:
+        elif len(member_ids) <= 1:
+            # Enkele belastingplichtige: het volledige belastbare inkomen wordt toegewezen.
+            box3_taxable_income_allocated = {member_ids[0]: box3_taxable_income} if member_ids else {}
+        elif taxable_grondslag_total <= 0 or gross_rendementsberekening <= 0:
             box3_taxable_income_allocated = split_equal(member_ids, box3_taxable_income)
         else:
-            running_allocated = Decimal("0")
-            for idx, member_id in enumerate(member_ids):
-                if idx == len(member_ids) - 1:
-                    allocated_income = box3_taxable_income - running_allocated
-                else:
-                    allocated_income = round_down_euro(
-                        box3_taxable_income * (taxable_grondslag_by_member[member_id] / taxable_grondslag_total)
-                    )
-                    running_allocated += allocated_income
+            # Per belastingplichtige: aandeel = afgerond-naar-beneden(grondslag_partner /
+            # grondslag_rendementsberekening, 4 decimalen) × fictief_rendement_totaal.
+            # Dit volgt de berekeningsmethode van de Belastingdienst waarbij het percentage
+            # op 2 decimalen (4 decimalen als breuk) naar beneden wordt afgerond.
+            for member_id in member_ids:
+                partner_grondslag = taxable_grondslag_by_member.get(member_id, Decimal("0"))
+                ratio = (partner_grondslag / gross_rendementsberekening).quantize(
+                    Decimal("0.0001"), rounding=ROUND_FLOOR
+                )
+                allocated_income = round_down_euro(ratio * deemed_return_total)
                 box3_taxable_income_allocated[member_id] = allocated_income
 
         total_partner_wealth = sum(
