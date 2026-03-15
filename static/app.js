@@ -6,9 +6,9 @@ const app = {
     BOX3_INVESTMENTS_RATE: 0.0588,
     JOINT_ITEMS: [
         { key: "eigenwoningforfait", label: "Eigenwoningforfait (bijtelling Box 1)" },
-        { key: "aftrek_geen_of_kleine_eigenwoningschuld", label: "Aftrek geen of kleine eigenwoningschuld (76,667%)", followsKey: "eigenwoningforfait" },
+        { key: "aftrek_geen_of_kleine_eigenwoningschuld", label: "Aftrek geen of kleine eigenwoningschuld (76,667%)" },
         { key: "grondslag_voordeel_sparen_beleggen", label: "Grondslag voordeel uit sparen en beleggen" },
-        { key: "vrijstelling_groene_beleggingen", label: "Vrijstelling groene beleggingen", followsKey: "grondslag_voordeel_sparen_beleggen" },
+        { key: "vrijstelling_groene_beleggingen", label: "Vrijstelling groene beleggingen" },
         { key: "ingehouden_dividendbelasting", label: "Ingehouden dividendbelasting" },
         { key: "ingehouden_buitenlandse_dividendbelasting", label: "Ingehouden buitenlandse dividendbelasting" },
     ],
@@ -72,7 +72,6 @@ const app = {
 
         this.form.addEventListener("input", (event) => {
             if (event.target?.dataset?.jointDistributionInput === "1") {
-                this.updateDerivedDistributionRows();
                 this.updateDistributionValidationStatus();
                 return;
             }
@@ -477,26 +476,6 @@ const app = {
         this.updateDistributionValidationStatus();
     },
 
-    /**
-     * Compute distribution values for a derived item by applying the master item's ratios
-     * to the derived item's total. When masterTotal is 0, falls back to an equal split.
-     */
-    computeDerivedValues(total, masterValues, memberCount) {
-        const masterTotal = masterValues.reduce((sum, v) => sum + v, 0);
-        if (masterTotal > 0) {
-            const allocated = masterValues.slice(0, -1).map((v) => Number((total * v / masterTotal).toFixed(2)));
-            const allocatedSoFar = allocated.reduce((sum, v) => sum + v, 0);
-            return [...allocated, Number((total - allocatedSoFar).toFixed(2))];
-        }
-        const share = Number((total / Math.max(memberCount, 1)).toFixed(2));
-        const values = Array(memberCount).fill(share);
-        if (memberCount > 1) {
-            const allocatedSoFar = values.slice(0, -1).reduce((sum, v) => sum + v, 0);
-            values[values.length - 1] = Number((total - allocatedSoFar).toFixed(2));
-        }
-        return values;
-    },
-
     renderJointDistribution(preview, prefillDistribution = null) {
         const memberIds = preview.member_ids || [];
         const totals = preview.joint_distribution_totals || {};
@@ -504,9 +483,8 @@ const app = {
         const existing = this.collectJointDistribution();
         const source = prefillDistribution || existing;
 
-        // Pre-compute values for all items so derived items can reference master item values.
-        const itemValues = {};
-        this.JOINT_ITEMS.forEach((item) => {
+        const memberHeader = memberIds.map((memberId) => `<th>${memberLabels[memberId] || memberId}</th>`).join("");
+        const rows = this.JOINT_ITEMS.map((item) => {
             const total = Number(totals[item.key] || 0);
             const currentValues = memberIds.map((memberId) => {
                 const explicit = source?.[item.key]?.[memberId];
@@ -515,44 +493,14 @@ const app = {
                 }
                 return Number((total / Math.max(memberIds.length, 1)).toFixed(2));
             });
+
             const allocatedSoFar = currentValues.slice(0, -1).reduce((sum, value) => sum + Number(value || 0), 0);
             if (memberIds.length > 1 && (source?.[item.key]?.[memberIds[memberIds.length - 1]] === undefined)) {
                 currentValues[currentValues.length - 1] = Number((total - allocatedSoFar).toFixed(2));
             }
-            itemValues[item.key] = currentValues;
-        });
-
-        const memberHeader = memberIds.map((memberId) => `<th>${memberLabels[memberId] || memberId}</th>`).join("");
-        const rows = this.JOINT_ITEMS.map((item) => {
-            const total = Number(totals[item.key] || 0);
-            let currentValues;
-
-            if (item.followsKey) {
-                // Derive distribution ratios from the master item.
-                currentValues = this.computeDerivedValues(total, itemValues[item.followsKey], memberIds.length);
-                itemValues[item.key] = currentValues;
-            } else {
-                currentValues = itemValues[item.key];
-            }
 
             const memberCells = memberIds.map((memberId, index) => {
                 const value = Number(currentValues[index] || 0);
-                if (item.followsKey) {
-                    return `
-                        <td>
-                            <input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value="${value}"
-                                readonly
-                                data-joint-distribution-input="1"
-                                data-item-key="${item.key}"
-                                data-member-id="${memberId}"
-                            >
-                        </td>
-                    `;
-                }
                 return `
                     <td>
                         <input
@@ -595,34 +543,6 @@ const app = {
                 </table>
             </div>
         `;
-    },
-
-    updateDerivedDistributionRows() {
-        const totals = this.latestJointPreview?.joint_distribution_totals || {};
-        const memberIds = this.latestJointPreview?.member_ids || [];
-
-        this.JOINT_ITEMS.forEach((item) => {
-            if (!item.followsKey) {
-                return;
-            }
-            const total = Number(totals[item.key] || 0);
-            const masterValues = memberIds.map((memberId) => {
-                const input = this.jointDistributionContainer.querySelector(
-                    `[data-item-key="${item.followsKey}"][data-member-id="${memberId}"]`
-                );
-                return input ? Number(input.value || 0) : 0;
-            });
-            const derivedValues = this.computeDerivedValues(total, masterValues, memberIds.length);
-
-            memberIds.forEach((memberId, index) => {
-                const input = this.jointDistributionContainer.querySelector(
-                    `[data-item-key="${item.key}"][data-member-id="${memberId}"]`
-                );
-                if (input) {
-                    input.value = derivedValues[index];
-                }
-            });
-        });
     },
 
     validateJointDistributionTotals() {

@@ -1,239 +1,234 @@
 {
-  "saved_at": "2026-03-14T22:38:56.080628",
+  "saved_at": "2026-03-14T21:47:49.668969",
   "household_id": "LR",
   "data": {
-    "household_id": "LR",
-    "fiscal_partner": true,
-    "children_count": 0,
-    "household_box1": {
-      "own_home": {
-        "has_own_home": true,
-        "woz_value": 379000,
-        "period_fraction": 1
-      }
-    },
-    "dividend_withholding_total": 780,
-    "foreign_dividend_withholding_total": 4,
     "box3_household": {
-      "savings_accounts": [
-        {
-          "name": "sp1",
-          "amount": 1,
-          "is_green": false
-        },
-        {
-          "name": "gelddeel beleggen ing",
-          "amount": 359,
-          "is_green": false
-        },
-        {
-          "name": "evi1",
-          "amount": 17798,
-          "is_green": false
-        },
-        {
-          "name": "zb gelddeel",
-          "amount": 942,
-          "is_green": false
-        },
-        {
-          "name": "ing betaal 1",
-          "amount": 254,
-          "is_green": false
-        },
-        {
-          "name": "ing betaal 2",
-          "amount": 1143,
-          "is_green": false
-        },
-        {
-          "name": "vlk 1",
-          "amount": 1,
-          "is_green": false
-        },
-        {
-          "name": "vlk spdr",
-          "amount": 84,
-          "is_green": false
-        },
-        {
-          "name": "vlk ",
-          "amount": 79336,
-          "is_green": false
-        },
-        {
-          "name": "ing sparen",
-          "amount": 19329,
-          "is_green": false
-        }
-      ],
-      "investment_accounts": [
-        {
-          "name": "evi",
-          "amount": 51239,
-          "is_green": false,
-          "dividend_withholding": 0,
-          "foreign_dividend_withholding": 0
-        },
-        {
-          "name": "ing",
-          "amount": 118966,
-          "is_green": false,
-          "dividend_withholding": 0,
-          "foreign_dividend_withholding": 0
-        },
-        {
-          "name": "evi 2",
-          "amount": 5972,
-          "is_green": false,
-          "dividend_withholding": 0,
-          "foreign_dividend_withholding": 0
-        },
-        {
-          "name": "zb",
-          "amount": 103471,
-          "is_green": false,
-          "dividend_withholding": 780,
-          "foreign_dividend_withholding": 4
-        },
-        {
-          "name": "zb2",
-          "amount": 0,
-          "is_green": false,
-          "dividend_withholding": 0,
-          "foreign_dividend_withholding": 0
-        },
-        {
-          "name": "zb3",
-          "amount": 5613,
-          "is_green": true,
-          "dividend_withholding": 0,
-          "foreign_dividend_withholding": 0
-        }
-      ],
-      "other_assets_items": [
-        {
-          "name": "Overige bezitting",
-          "amount": 0
-        }
-      ],
       "debt_items": [
         {
-          "name": "cc",
-          "amount": 0
+          "amount": 0,
+          "name": "cc"
+        }
+      ],
+      "debts": 0,
+      "investment_accounts": [
+        {
+          "amount": 51239,
+          "dividend_withholding": 0,
+          "foreign_dividend_withholding": 0,
+          "is_green": false,
+          "name": "evi"
+        },
+        {
+          "amount": 118966,
+          "dividend_withholding": 0,
+          "foreign_dividend_withholding": 0,
+          "is_green": false,
+          "name": "ing"
+        },
+        {
+          "amount": 5972,
+          "dividend_withholding": 0,
+          "foreign_dividend_withholding": 0,
+          "is_green": false,
+          "name": "evi 2"
+        },
+        {
+          "amount": 103471,
+          "dividend_withholding": 780,
+          "foreign_dividend_withholding": 4,
+          "is_green": false,
+          "name": "zb"
+        },
+        {
+          "amount": 0,
+          "dividend_withholding": 0,
+          "foreign_dividend_withholding": 0,
+          "is_green": false,
+          "name": "zb2"
+        },
+        {
+          "amount": 5613,
+          "dividend_withholding": 0,
+          "foreign_dividend_withholding": 0,
+          "is_green": true,
+          "name": "zb3"
+        }
+      ],
+      "investments": 279648,
+      "other_assets": 0,
+      "other_assets_items": [
+        {
+          "amount": 0,
+          "name": "Overige bezitting"
         }
       ],
       "savings": 119247,
-      "investments": 279648,
-      "other_assets": 0,
-      "debts": 0,
+      "savings_accounts": [
+        {
+          "amount": 1,
+          "is_green": false,
+          "name": "sp1"
+        },
+        {
+          "amount": 359,
+          "is_green": false,
+          "name": "gelddeel beleggen ing"
+        },
+        {
+          "amount": 17798,
+          "is_green": false,
+          "name": "evi1"
+        },
+        {
+          "amount": 942,
+          "is_green": false,
+          "name": "zb gelddeel"
+        },
+        {
+          "amount": 254,
+          "is_green": false,
+          "name": "ing betaal 1"
+        },
+        {
+          "amount": 1143,
+          "is_green": false,
+          "name": "ing betaal 2"
+        },
+        {
+          "amount": 1,
+          "is_green": false,
+          "name": "vlk 1"
+        },
+        {
+          "amount": 84,
+          "is_green": false,
+          "name": "vlk spdr"
+        },
+        {
+          "amount": 79336,
+          "is_green": false,
+          "name": "vlk "
+        },
+        {
+          "amount": 19329,
+          "is_green": false,
+          "name": "ing sparen"
+        }
+      ],
       "total_dividend_withholding": 780,
       "total_foreign_dividend_withholding": 4
     },
+    "children_count": 0,
+    "dividend_withholding_total": 780,
+    "fiscal_partner": true,
+    "foreign_dividend_withholding_total": 4,
+    "household_box1": {
+      "own_home": {
+        "has_own_home": true,
+        "period_fraction": 1,
+        "woz_value": 379000
+      }
+    },
+    "household_id": "LR",
     "joint_distribution": {
-      "eigenwoningforfait": {
-        "000000001": 1326,
-        "000000002": 0
-      },
       "aftrek_geen_of_kleine_eigenwoningschuld": {
         "000000001": 1017,
         "000000002": 0
       },
-      "grondslag_voordeel_sparen_beleggen": {
-        "000000001": 283527,
+      "eigenwoningforfait": {
+        "000000001": 1326,
         "000000002": 0
       },
-      "vrijstelling_groene_beleggingen": {
-        "000000001": 5359,
-        "000000002": 254
+      "grondslag_voordeel_sparen_beleggen": {
+        "000000001": 270683,
+        "000000002": 12844
+      },
+      "ingehouden_buitenlandse_dividendbelasting": {
+        "000000001": 4,
+        "000000002": 0
       },
       "ingehouden_dividendbelasting": {
         "000000001": 780,
         "000000002": 0
       },
-<<<<<<< HEAD
-      "ingehouden_buitenlandse_dividendbelasting": {
-        "000000001": 4,
-=======
       "vrijstelling_groene_beleggingen": {
-        "000000001": 5613,
->>>>>>> 384dc8a05918f306dd14ce12bc371717fca45bdd
-        "000000002": 0
+        "000000001": 5359,
+        "000000002": 254
       }
     },
     "members": [
       {
-        "member_id": "000000001",
-        "full_name": "R",
-        "bsn": "000000001",
-        "wage_withholding": 34789,
         "box1": {
+          "deductions": [],
+          "has_aow": false,
           "incomes": [
             {
-              "type": "EMPLOYMENT",
               "amount": 94771,
+              "description": "vlk",
               "labor_credit": 3267,
               "source": "vlk",
-              "description": "vlk"
+              "type": "EMPLOYMENT"
             }
           ],
-          "deductions": [],
-          "has_aow": false,
           "tax_credits": [
             {
-              "name": "arbeidskorting",
-              "amount": 2234
+              "amount": 2234,
+              "name": "arbeidskorting"
             }
           ]
         },
         "box2": {
-          "has_substantial_interest": false,
+          "acquisition_price": 0,
           "dividend_income": 0,
-          "sale_gain": 0,
-          "acquisition_price": 0
-        }
+          "has_substantial_interest": false,
+          "sale_gain": 0
+        },
+        "bsn": "000000001",
+        "full_name": "R",
+        "member_id": "000000001",
+        "wage_withholding": 34789
       },
       {
-        "member_id": "000000002",
-        "full_name": "L",
-        "bsn": "000000002",
-        "wage_withholding": 6968,
         "box1": {
-          "incomes": [
-            {
-              "type": "EMPLOYMENT",
-              "amount": 21822,
-              "labor_credit": 3075,
-              "source": "H",
-              "description": "H"
-            },
-            {
-              "type": "BENEFITS",
-              "amount": 15016,
-              "labor_credit": 0,
-              "source": "UWV",
-              "description": "UWV"
-            }
-          ],
           "deductions": [],
           "has_aow": false,
-          "tax_credits": [
+          "incomes": [
             {
-              "name": "arbeidskorting ",
-              "amount": 3879
+              "amount": 21822,
+              "description": "H",
+              "labor_credit": 3075,
+              "source": "H",
+              "type": "EMPLOYMENT"
             },
             {
-              "name": "algemene heffingskorting",
-              "amount": 2497
+              "amount": 15016,
+              "description": "UWV",
+              "labor_credit": 0,
+              "source": "UWV",
+              "type": "BENEFITS"
+            }
+          ],
+          "tax_credits": [
+            {
+              "amount": 3879,
+              "name": "arbeidskorting "
+            },
+            {
+              "amount": 2497,
+              "name": "algemene heffingskorting"
             }
           ]
         },
         "box2": {
-          "has_substantial_interest": false,
+          "acquisition_price": 0,
           "dividend_income": 0,
-          "sale_gain": 0,
-          "acquisition_price": 0
-        }
+          "has_substantial_interest": false,
+          "sale_gain": 0
+        },
+        "bsn": "000000002",
+        "full_name": "L",
+        "member_id": "000000002",
+        "wage_withholding": 6968
       }
     ]
   }
