@@ -11,6 +11,6 @@ __pycache__/
 dotnet/DutchTax.Web/bin/
 dotnet/DutchTax.Web/obj/
 dotnet/DutchTax.Web/publish/
-
-# Saved web form submissions (input payload snapshots)
 submissions/
+# Saved web form submissions (input payload snapshots)
+
