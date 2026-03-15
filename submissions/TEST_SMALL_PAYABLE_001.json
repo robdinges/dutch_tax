@@ -1,5 +1,5 @@
 {
-  "saved_at": "2026-03-15T07:01:06.846744",
+  "saved_at": "2026-03-13T10:13:08.018894",
   "household_id": "TEST_SMALL_PAYABLE_001",
   "data": {
     "box3_household": {
@@ -143,7 +143,7 @@
         "bsn": "P2",
         "full_name": "Partner 2",
         "member_id": "P2",
-        "wage_withholding": 6969
+        "wage_withholding": 6968
       }
     ]
   }
