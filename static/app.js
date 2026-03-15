@@ -31,7 +31,7 @@ const app = {
         this.membersContainer = document.getElementById("membersContainer");
         this.creditsContainer = document.getElementById("creditsContainer");
         this.resultsSection = document.getElementById("resultsSection");
-        this.emptyState = document.getElementById("emptyState");
+        this.resultPanel = document.getElementById("resultPanel");
         this.loadJsonFile = document.getElementById("loadJsonFile");
         this.loadJsonBtn = document.getElementById("loadJsonBtn");
         this.jointDistributionContainer = document.getElementById("jointDistributionContainer");
@@ -476,37 +476,143 @@ const app = {
         this.updateDistributionValidationStatus();
     },
 
+    READONLY_ITEMS: new Set([
+        "aftrek_geen_of_kleine_eigenwoningschuld",
+        "ingehouden_buitenlandse_dividendbelasting",
+    ]),
+
+    roundEuro(value) {
+        return Math.round(value);
+    },
+
+    computeReadonlyValues(memberIds, totals, distribution) {
+        const result = {};
+
+        const ewfTotal = Number(totals["eigenwoningforfait"] || 0);
+        const aftrekTotal = Number(totals["aftrek_geen_of_kleine_eigenwoningschuld"] || 0);
+        if (memberIds.length >= 2 && ewfTotal > 0) {
+            let running = 0;
+            memberIds.forEach((memberId, idx) => {
+                let val;
+                if (idx === memberIds.length - 1) {
+                    val = aftrekTotal - running;
+                } else {
+                    const ewfShare = Number(distribution["eigenwoningforfait"]?.[memberId] || 0);
+                    val = this.roundEuro(aftrekTotal * (ewfShare / ewfTotal));
+                    running += val;
+                }
+                result["aftrek_geen_of_kleine_eigenwoningschuld"] = result["aftrek_geen_of_kleine_eigenwoningschuld"] || {};
+                result["aftrek_geen_of_kleine_eigenwoningschuld"][memberId] = val;
+            });
+        } else {
+            memberIds.forEach((memberId) => {
+                result["aftrek_geen_of_kleine_eigenwoningschuld"] = result["aftrek_geen_of_kleine_eigenwoningschuld"] || {};
+                result["aftrek_geen_of_kleine_eigenwoningschuld"][memberId] =
+                    distribution["aftrek_geen_of_kleine_eigenwoningschuld"]?.[memberId] ?? 0;
+            });
+        }
+
+        const divTotal = Number(totals["ingehouden_dividendbelasting"] || 0);
+        const buitenlandsTotal = Number(totals["ingehouden_buitenlandse_dividendbelasting"] || 0);
+        if (memberIds.length >= 2 && divTotal > 0) {
+            let running = 0;
+            memberIds.forEach((memberId, idx) => {
+                let val;
+                if (idx === memberIds.length - 1) {
+                    val = buitenlandsTotal - running;
+                } else {
+                    const divShare = Number(distribution["ingehouden_dividendbelasting"]?.[memberId] || 0);
+                    val = this.roundEuro(buitenlandsTotal * (divShare / divTotal));
+                    running += val;
+                }
+                result["ingehouden_buitenlandse_dividendbelasting"] = result["ingehouden_buitenlandse_dividendbelasting"] || {};
+                result["ingehouden_buitenlandse_dividendbelasting"][memberId] = val;
+            });
+        } else {
+            memberIds.forEach((memberId) => {
+                result["ingehouden_buitenlandse_dividendbelasting"] = result["ingehouden_buitenlandse_dividendbelasting"] || {};
+                result["ingehouden_buitenlandse_dividendbelasting"][memberId] =
+                    distribution["ingehouden_buitenlandse_dividendbelasting"]?.[memberId] ?? 0;
+            });
+        }
+
+        return result;
+    },
+
     renderJointDistribution(preview, prefillDistribution = null) {
         const memberIds = preview.member_ids || [];
         const totals = preview.joint_distribution_totals || {};
         const memberLabels = preview.member_labels || {};
         const existing = this.collectJointDistribution();
         const source = prefillDistribution || existing;
+        const isTwoPartners = memberIds.length === 2;
+
+        const initialDist = {};
+        this.JOINT_ITEMS.forEach((item) => {
+            initialDist[item.key] = {};
+            const total = Number(totals[item.key] || 0);
+
+            const existingSum = memberIds.reduce((sum, memberId) => {
+                return sum + Number(source?.[item.key]?.[memberId] || 0);
+            }, 0);
+            const hasExplicitValues = existingSum !== 0 || total === 0;
+
+            if (hasExplicitValues) {
+                memberIds.forEach((memberId) => {
+                    const explicit = source?.[item.key]?.[memberId];
+                    initialDist[item.key][memberId] = this.roundEuro(Number(explicit || 0));
+                });
+                if (isTwoPartners) {
+                    const m0 = memberIds[0];
+                    const m1 = memberIds[1];
+                    initialDist[item.key][m1] = total - initialDist[item.key][m0];
+                }
+            } else {
+                memberIds.forEach((memberId, idx) => {
+                    initialDist[item.key][memberId] = idx === 0
+                        ? this.roundEuro(total / Math.max(memberIds.length, 1))
+                        : 0;
+                });
+                if (isTwoPartners) {
+                    const m0 = memberIds[0];
+                    const m1 = memberIds[1];
+                    initialDist[item.key][m1] = total - initialDist[item.key][m0];
+                }
+            }
+        });
+
+        const readonlyValues = this.computeReadonlyValues(memberIds, totals, initialDist);
+        Object.assign(initialDist, readonlyValues);
 
         const memberHeader = memberIds.map((memberId) => `<th>${memberLabels[memberId] || memberId}</th>`).join("");
         const rows = this.JOINT_ITEMS.map((item) => {
             const total = Number(totals[item.key] || 0);
-            const currentValues = memberIds.map((memberId) => {
-                const explicit = source?.[item.key]?.[memberId];
-                if (explicit !== undefined && explicit !== null) {
-                    return Number(explicit);
+            const isReadonly = this.READONLY_ITEMS.has(item.key);
+
+            const memberCells = memberIds.map((memberId) => {
+                const value = initialDist[item.key]?.[memberId] ?? 0;
+                if (isReadonly) {
+                    return `
+                        <td>
+                            <input
+                                type="number"
+                                step="1"
+                                value="${value}"
+                                readonly
+                                data-joint-distribution-input="1"
+                                data-item-key="${item.key}"
+                                data-member-id="${memberId}"
+                                style="background:#f0f4f6;color:#556677;cursor:not-allowed;"
+                            >
+                        </td>
+                    `;
                 }
-                return Number((total / Math.max(memberIds.length, 1)).toFixed(2));
-            });
-
-            const allocatedSoFar = currentValues.slice(0, -1).reduce((sum, value) => sum + Number(value || 0), 0);
-            if (memberIds.length > 1 && (source?.[item.key]?.[memberIds[memberIds.length - 1]] === undefined)) {
-                currentValues[currentValues.length - 1] = Number((total - allocatedSoFar).toFixed(2));
-            }
-
-            const memberCells = memberIds.map((memberId, index) => {
-                const value = Number(currentValues[index] || 0);
                 return `
                     <td>
                         <input
                             type="number"
                             min="0"
-                            step="0.01"
+                            step="1"
                             value="${value}"
                             data-joint-distribution-input="1"
                             data-item-key="${item.key}"
@@ -518,7 +624,7 @@ const app = {
 
             return `
                 <tr data-item-row="${item.key}">
-                    <td>${item.label}</td>
+                    <td>${item.label}${isReadonly ? ' <em style="font-size:0.78em;color:#667788">(automatisch)</em>' : ""}</td>
                     <td class="mono">${this.currency(total)}</td>
                     ${memberCells}
                     <td class="distribution-check" data-check-key="${item.key}">-</td>
@@ -542,7 +648,69 @@ const app = {
                     </tbody>
                 </table>
             </div>
+            <div id="distributionNegativeError" class="step-status warn" style="display:none;margin-top:0.4rem;"></div>
         `;
+
+        if (isTwoPartners) {
+            this.attachDistributionAutoFillListeners(memberIds, totals);
+        }
+    },
+
+    attachDistributionAutoFillListeners(memberIds, totals) {
+        const editableItems = this.JOINT_ITEMS.filter((item) => !this.READONLY_ITEMS.has(item.key));
+        editableItems.forEach((item) => {
+            const total = Number(totals[item.key] || 0);
+            memberIds.forEach((memberId, idx) => {
+                const input = this.jointDistributionContainer.querySelector(
+                    `[data-item-key='${item.key}'][data-member-id='${memberId}']`
+                );
+                if (!input) return;
+                input.addEventListener("change", () => {
+                    const changedVal = this.roundEuro(Number(input.value || 0));
+                    input.value = changedVal;
+                    const otherIdx = 1 - idx;
+                    const otherMemberId = memberIds[otherIdx];
+                    const otherInput = this.jointDistributionContainer.querySelector(
+                        `[data-item-key='${item.key}'][data-member-id='${otherMemberId}']`
+                    );
+                    if (otherInput && !otherInput.readOnly) {
+                        const otherVal = total - changedVal;
+                        otherInput.value = otherVal;
+                        this.checkNegativeDistribution(otherVal, item.label, otherMemberId);
+                    }
+                    this.recalculateReadonlyFields(memberIds, totals);
+                    this.updateDistributionValidationStatus();
+                    this.markDistributionStale();
+                });
+            });
+        });
+    },
+
+    checkNegativeDistribution(value, itemLabel, memberId) {
+        const errorEl = document.getElementById("distributionNegativeError");
+        if (!errorEl) return;
+        if (value < 0) {
+            errorEl.style.display = "block";
+            errorEl.textContent = `Negatief bedrag bij "${itemLabel}" voor partner ${memberId}. Pas de verdeling aan.`;
+        } else {
+            errorEl.style.display = "none";
+            errorEl.textContent = "";
+        }
+    },
+
+    recalculateReadonlyFields(memberIds, totals) {
+        const currentDist = this.collectJointDistribution();
+        const readonlyValues = this.computeReadonlyValues(memberIds, totals, currentDist);
+        Object.entries(readonlyValues).forEach(([itemKey, memberValues]) => {
+            Object.entries(memberValues).forEach(([memberId, value]) => {
+                const input = this.jointDistributionContainer.querySelector(
+                    `[data-item-key='${itemKey}'][data-member-id='${memberId}']`
+                );
+                if (input) {
+                    input.value = value;
+                }
+            });
+        });
     },
 
     validateJointDistributionTotals() {
@@ -558,7 +726,7 @@ const app = {
                 return acc + Number(distribution?.[item.key]?.[memberId] || 0);
             }, 0);
             const diff = Math.abs(total - sum);
-            const rowValid = diff <= 0.01;
+            const rowValid = diff <= 1;
             rowStates[item.key] = { total, sum, rowValid };
             if (!rowValid) {
                 isValid = false;
@@ -905,8 +1073,8 @@ const app = {
     },
 
     renderResults(result) {
-        this.resultsSection.classList.remove("hidden");
-        this.emptyState.classList.add("hidden");
+        this.resultPanel.classList.remove("hidden");
+        this.resultPanel.scrollIntoView({ behavior: "smooth", block: "start" });
 
         const settlement = result.settlement;
         const box2 = result.box2;

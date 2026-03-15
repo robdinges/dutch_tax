@@ -70,8 +70,8 @@ h1 {
 .layout {
     max-width: 1100px;
     margin: 1.2rem auto 2.4rem;
-    display: grid;
-    grid-template-columns: 1.05fr 0.95fr;
+    display: flex;
+    flex-direction: column;
     gap: 1rem;
     padding: 0 1rem;
 }
@@ -456,12 +456,6 @@ ol li {
     to {
         transform: translateY(0);
         opacity: 1;
-    }
-}
-
-@media (max-width: 1024px) {
-    .layout {
-        grid-template-columns: 1fr;
     }
 }
 

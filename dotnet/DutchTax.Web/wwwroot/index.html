@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="bg-grid"></div>
@@ -151,17 +151,13 @@
             </form>
         </section>
 
-        <section class="panel result-panel">
+        <section class="panel result-panel hidden" id="resultPanel">
             <div class="panel-head">
                 <h2>Uitkomst</h2>
                 <p>Resultaten volgen exact de Box-structuur en verrekenstappen.</p>
             </div>
 
-            <div id="emptyState" class="empty-state">
-                <p>Nog geen berekening uitgevoerd.</p>
-            </div>
-
-            <div id="resultsSection" class="hidden">
+            <div id="resultsSection">
                 <div class="kpis">
                     <article>
                         <span>Resultaat</span>
@@ -210,6 +206,6 @@
         </section>
     </main>
 
-    <script src="{{ url_for('static', filename='app.js') }}"></script>
+    <script src="app.js"></script>
 </body>
 </html>

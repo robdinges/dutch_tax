@@ -78,6 +78,15 @@ public sealed class TaxYearConfig
     public required decimal Box3Rate { get; init; }
     public required decimal GeneralTaxCredit { get; init; }
     public string Description { get; init; } = string.Empty;
+    public decimal Box3SavingsReturnRate { get; init; }
+    public decimal Box3InvestmentReturnRate { get; init; }
+    public decimal Box3TaxFreeAssetsSingle { get; init; }
+    public decimal PremiumAowRate { get; init; }
+    public decimal PremiumAnwRate { get; init; }
+    public decimal PremiumWlzRate { get; init; }
+    public decimal PremiumIncomeCap { get; init; }
+    public decimal GreenInvestmentTaxCreditRate { get; init; }
+    public decimal GreenInvestmentCreditBaseCapSingle { get; init; }
 }
 
 public static class TaxConfigs
@@ -127,6 +136,15 @@ public static class TaxConfigs
                 ],
                 Box3Rate = 0.3600m,
                 GeneralTaxCredit = 2_917m,
+                Box3SavingsReturnRate = 0.0137m,
+                Box3InvestmentReturnRate = 0.0588m,
+                Box3TaxFreeAssetsSingle = 57_684m,
+                PremiumAowRate = 0.1790m,
+                PremiumAnwRate = 0.0010m,
+                PremiumWlzRate = 0.0965m,
+                PremiumIncomeCap = 38_441m,
+                GreenInvestmentTaxCreditRate = 0.0010m,
+                GreenInvestmentCreditBaseCapSingle = 26_312m,
                 Description = "Dutch tax year 2025 - Realistic rates"
             }
         };

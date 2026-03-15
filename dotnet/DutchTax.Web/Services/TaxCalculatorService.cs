@@ -1,3 +1,4 @@
+using DutchTax.Web.Models;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -8,6 +9,15 @@ namespace DutchTax.Web.Services;
 public sealed class TaxCalculatorService
 {
     // All rates, brackets, and amounts are now sourced from TaxConfigs.Latest
+
+    private static readonly TaxYearConfig Config2025 = TaxConfigs.Latest;
+    private const decimal Box2Rate2025 = 0.269m;
+    private const decimal SmallPayableAssessmentThreshold = 57m;
+    private const decimal SmallOwnHomeDebtDeductionRate = 0.76667m;
+    private static readonly decimal[] EigenwoningforfaitThresholds = [0m, 12_500m, 25_000m, 50_000m, 75_000m, 1_330_000m];
+    private static readonly decimal[] EigenwoningforfaitPercents = [0.0m, 0.0010m, 0.0020m, 0.0025m, 0.0035m];
+    private const decimal EigenwoningforfaitUpperBaseFixed = 4_655m;
+    private const decimal EigenwoningforfaitUpperRate = 0.0235m;
 
     private readonly string _contentRootPath;
 
@@ -978,7 +988,7 @@ public sealed class TaxCalculatorService
 
             foreach (var memberId in memberIds)
             {
-                var amount = hasDistributionObject ? GetDecimal(dist, memberId) : 0m;
+                var amount = hasDistributionObject ? RoundEuro(GetDecimal(dist, memberId)) : 0m;
                 if (amount < 0m)
                 {
                     errors.Add($"Verdeling voor '{itemKey}' bevat negatieve waarde voor '{memberId}'.");
@@ -990,7 +1000,7 @@ public sealed class TaxCalculatorService
 
             if (mustValidate)
             {
-                if (Math.Abs(providedSum - totalAmount) > 0.01m)
+                if (Math.Abs(providedSum - totalAmount) > 1m)
                 {
                     errors.Add($"Verdeling voor '{itemKey}' telt op tot {providedSum} maar moet {totalAmount} zijn.");
                 }
@@ -1067,6 +1077,8 @@ public sealed class TaxCalculatorService
     private static decimal RoundDownEuro(decimal value) => decimal.Floor(value);
 
     private static decimal RoundUpEuro(decimal value) => decimal.Ceiling(value);
+
+    private static decimal RoundEuro(decimal value) => Math.Round(value, 0, MidpointRounding.AwayFromZero);
 
     private static string FirstNonEmpty(params string[] values)
     {
@@ -1262,27 +1274,4 @@ public sealed class TaxCalculatorService
         public required decimal TaxAmount { get; set; }
     }
 
-    private sealed class TaxConfig
-    {
-        public int Year { get; init; }
-        public required List<TaxBracket> Box1Brackets { get; init; }
-        public decimal Box3Rate { get; init; }
-        public decimal Box3SavingsReturnRate { get; init; }
-        public decimal Box3InvestmentReturnRate { get; init; }
-        public decimal Box3TaxFreeAssetsSingle { get; init; }
-        public decimal PremiumAowRate { get; init; }
-        public decimal PremiumAnwRate { get; init; }
-        public decimal PremiumWlzRate { get; init; }
-        public decimal PremiumIncomeCap { get; init; }
-        public decimal GreenInvestmentTaxCreditRate { get; init; }
-        public decimal GreenInvestmentCreditBaseCapSingle { get; init; }
-    }
-
-    private sealed class TaxBracket(decimal lowerBound, decimal? upperBound, decimal rate, string description)
-    {
-        public decimal LowerBound { get; } = lowerBound;
-        public decimal? UpperBound { get; } = upperBound;
-        public decimal Rate { get; } = rate;
-        public string Description { get; } = description;
-    }
 }
