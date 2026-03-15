@@ -175,9 +175,8 @@ def normalize_joint_distribution(
             amount = dec(item_distribution_raw.get(member_id, "0")) if isinstance(item_distribution_raw, dict) else Decimal("0")
             if amount < 0:
                 errors.append(f"Verdeling voor '{item_key}' bevat negatieve waarde voor '{member_id}'.")
-            # Afronden naar hele euro's (normale regels)
-            item_distribution[member_id] = amount.quantize(Decimal("1"), rounding=ROUND_HALF_UP)
-            provided_sum += item_distribution[member_id]
+            item_distribution[member_id] = amount
+            provided_sum += amount
 
         if must_validate:
             if abs(provided_sum - total_amount) > Decimal("0.01"):

@@ -83,8 +83,7 @@ def build_dist_amounts(totalen: dict, p1_amounts: dict[str, float]) -> dict:
     dist: dict[str, dict[str, float]] = {}
     for key in ITEMS:
         tot = totalen[key]
-        # Afronden naar hele euro's (normale regels)
-        p1_amt = round(p1_amounts[key])
+        p1_amt = p1_amounts[key]
         p2_amt = round(tot - p1_amt)
         dist[key] = {P1: p1_amt, P2: p2_amt}
     return dist

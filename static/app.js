@@ -99,11 +99,18 @@ const app = {
     },
 
     renderMembers(count) {
-            const currentValues = memberIds.map((memberId, index) => {
-                const value = Math.round(Number(source?.[item.key]?.[memberId] || (total / Math.max(memberIds.length, 1))));
-                return value;
-            });
-            itemValues[item.key] = currentValues;
+        this.membersContainer.innerHTML = "";
+        for (let i = 1; i <= count; i += 1) {
+            this.membersContainer.appendChild(this.createMemberCard(i));
+        }
+    },
+
+    renderCreditsPerPerson(count) {
+        this.creditsContainer.innerHTML = "";
+        for (let i = 1; i <= count; i += 1) {
+            const node = document.createElement("article");
+            node.className = "member-card";
+            node.id = `credits-member-${i}`;
             node.innerHTML = `
                 <header><h4>Persoon ${i} - Heffingskortingen</h4></header>
                 <div class="editor-header simple-header">
