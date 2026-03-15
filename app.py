@@ -13,6 +13,19 @@ from flask import Flask, jsonify, render_template, request
 
 from object_model import calculate_eigenwoningforfait
 from tax_brackets import get_latest_tax_config
+from texts import (
+    ALLOCATION_STRATEGIES,
+    BOX1_DEDUCTION_TYPES,
+    ERROR_CALCULATION,
+    ERROR_DISTRIBUTION_MISSING,
+    ERROR_DISTRIBUTION_NEGATIVE,
+    ERROR_DISTRIBUTION_SUM,
+    ERROR_MIN_ONE_PERSON,
+    ERROR_NOT_FOUND,
+    ERROR_PREVIEW,
+    ERROR_SERVER,
+    INCOME_TYPES,
+)
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "dutch-tax-calculator-secret"
@@ -166,7 +179,7 @@ def normalize_joint_distribution(
         item_distribution_raw = raw_distribution.get(item_key, {}) if isinstance(raw_distribution, dict) else {}
 
         if (not isinstance(item_distribution_raw, dict)) and must_validate:
-            errors.append(f"Verdeling voor '{item_key}' ontbreekt of heeft onjuist formaat.")
+            errors.append(ERROR_DISTRIBUTION_MISSING.format(item_key=item_key))
             continue
 
         item_distribution: dict[str, Decimal] = {}
@@ -174,14 +187,16 @@ def normalize_joint_distribution(
         for member_id in member_ids:
             amount = dec(item_distribution_raw.get(member_id, "0")) if isinstance(item_distribution_raw, dict) else Decimal("0")
             if amount < 0:
-                errors.append(f"Verdeling voor '{item_key}' bevat negatieve waarde voor '{member_id}'.")
+                errors.append(ERROR_DISTRIBUTION_NEGATIVE.format(item_key=item_key, member_id=member_id))
             item_distribution[member_id] = amount
             provided_sum += amount
 
         if must_validate:
             if abs(provided_sum - total_amount) > Decimal("0.01"):
                 errors.append(
-                    f"Verdeling voor '{item_key}' telt op tot {provided_sum} maar moet {total_amount} zijn."
+                    ERROR_DISTRIBUTION_SUM.format(
+                        item_key=item_key, provided_sum=provided_sum, total_amount=total_amount
+                    )
                 )
             distribution[item_key] = item_distribution
         else:
@@ -233,44 +248,17 @@ def index():
 
 @app.route("/api/income-types")
 def get_income_types():
-    return jsonify(
-        {
-            "types": [
-                {"id": "EMPLOYMENT", "label": "Loon uit dienstverband"},
-                {"id": "SELF_EMPLOYMENT", "label": "Winst uit onderneming"},
-                {"id": "BENEFITS", "label": "Uitkeringen"},
-                {"id": "PENSION", "label": "Pensioen"},
-                {"id": "OTHER", "label": "Overig Box 1 inkomen"},
-            ]
-        }
-    )
+    return jsonify({"types": INCOME_TYPES})
 
 
 @app.route("/api/box1-deduction-types")
 def get_box1_deduction_types():
-    return jsonify(
-        {
-            "types": [
-                {"id": "MORTGAGE_INTEREST", "label": "Hypotheekrente"},
-                {"id": "ENTREPRENEUR_ALLOWANCE", "label": "Ondernemersaftrek"},
-                {"id": "PERSONAL_ALLOWANCE", "label": "Persoonsgebonden aftrek"},
-                {"id": "OTHER", "label": "Overige aftrek"},
-            ]
-        }
-    )
+    return jsonify({"types": BOX1_DEDUCTION_TYPES})
 
 
 @app.route("/api/allocation-strategies")
 def get_allocation_strategies():
-    return jsonify(
-        {
-            "strategies": [
-                {"id": "EQUAL", "label": "Gelijk"},
-                {"id": "PROPORTIONAL", "label": "Proportioneel op netto vermogen"},
-                {"id": "CUSTOM", "label": "Custom verdeling (%)"},
-            ]
-        }
-    )
+    return jsonify({"strategies": ALLOCATION_STRATEGIES})
 
 
 @app.route("/api/joint-items-preview", methods=["POST"])
@@ -282,7 +270,7 @@ def preview_joint_items():
 
         members = data.get("members", [])
         if not members:
-            return jsonify({"error": "Minimaal 1 persoon is verplicht."}), 400
+            return jsonify({"error": ERROR_MIN_ONE_PERSON}), 400
 
         member_ids: list[str] = []
         member_labels: dict[str, str] = {}
@@ -500,7 +488,7 @@ def preview_joint_items():
             }
         )
     except Exception as exc:
-        return jsonify({"error": f"Preview error: {str(exc)}"}), 500
+        return jsonify({"error": ERROR_PREVIEW.format(detail=str(exc))}), 500
 
 
 @app.route("/api/calculate", methods=["POST"])
@@ -512,7 +500,7 @@ def calculate_tax():
 
         members = data.get("members", [])
         if not members:
-            return jsonify({"error": "Minimaal 1 persoon is verplicht."}), 400
+            return jsonify({"error": ERROR_MIN_ONE_PERSON}), 400
 
         fiscal_partner = bool(data.get("fiscal_partner", len(members) > 1))
         allocation_strategy = data.get("allocation_strategy", "PROPORTIONAL")
@@ -1149,17 +1137,17 @@ def calculate_tax():
             }
         )
     except Exception as exc:
-        return jsonify({"error": f"Calculation error: {str(exc)}"}), 500
+        return jsonify({"error": ERROR_CALCULATION.format(detail=str(exc))}), 500
 
 
 @app.errorhandler(404)
 def not_found(_error):
-    return jsonify({"error": "Page not found"}), 404
+    return jsonify({"error": ERROR_NOT_FOUND}), 404
 
 
 @app.errorhandler(500)
 def server_error(_error):
-    return jsonify({"error": "Server error"}), 500
+    return jsonify({"error": ERROR_SERVER}), 500
 
 
 if __name__ == "__main__":
