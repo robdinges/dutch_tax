@@ -140,8 +140,8 @@
         "000000002": 0
       },
       "grondslag_voordeel_sparen_beleggen": {
-        "000000001": 270683,
-        "000000002": 12844
+        "000000001": 283527,
+        "000000002": 0
       },
       "vrijstelling_groene_beleggingen": {
         "000000001": 5359,
@@ -151,8 +151,13 @@
         "000000001": 780,
         "000000002": 0
       },
+<<<<<<< HEAD
       "ingehouden_buitenlandse_dividendbelasting": {
         "000000001": 4,
+=======
+      "vrijstelling_groene_beleggingen": {
+        "000000001": 5613,
+>>>>>>> 384dc8a05918f306dd14ce12bc371717fca45bdd
         "000000002": 0
       }
     },
