@@ -13,4 +13,4 @@ dotnet/DutchTax.Web/obj/
 dotnet/DutchTax.Web/publish/
 
 # Saved web form submissions (input payload snapshots)
-#submissions/
+submissions/
