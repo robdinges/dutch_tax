@@ -79,6 +79,13 @@ const app = {
             this.scheduleJointDistributionRefresh();
         });
 
+        this.form.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" && event.target?.dataset?.jointDistributionInput === "1") {
+                event.preventDefault();
+                this.updateDistributionValidationStatus();
+            }
+        });
+
         this.addSavingsBtn.addEventListener("click", () => this.addSavingsRow());
         this.addInvestmentsBtn.addEventListener("click", () => this.addInvestmentRow());
         this.addOtherAssetBtn.addEventListener("click", () => this.addOtherAssetRow());
@@ -90,10 +97,6 @@ const app = {
         this.investmentsList.innerHTML = "";
         this.otherAssetsList.innerHTML = "";
         this.debtsList.innerHTML = "";
-        this.addSavingsRow();
-        this.addInvestmentRow();
-        this.addOtherAssetRow();
-        this.addDebtRow();
         this.updateBox3Subtotals();
     },
 
@@ -121,7 +124,6 @@ const app = {
                 <button type="button" class="btn ghost" onclick="app.addCreditRow(${i})">+ Heffingskorting</button>
             `;
             this.creditsContainer.appendChild(node);
-            this.addCreditRow(i);
         }
     },
 
@@ -191,10 +193,6 @@ const app = {
                 </div>
             </section>
         `;
-        setTimeout(() => {
-            this.addIncomeRow(index);
-            this.addDeductionRow(index);
-        }, 0);
         return node;
     },
 
@@ -217,7 +215,7 @@ const app = {
             <label class="inline-toggle">Groen sparen
                 <input type="checkbox" data-kind="is-green" ${isGreen ? "checked" : ""}>
             </label>
-            <button type="button" class="btn ghost row-remove" onclick="app.removeRow('${rowId}')">Verwijder</button>
+            <button type="button" class="btn ghost row-remove" onclick="app.removeRow('${rowId}')" aria-label="Verwijder">&times;</button>
         `;
         this.savingsList.appendChild(node);
         this.attachBox3RowListeners(node);
@@ -244,7 +242,7 @@ const app = {
             <label>Buitenlandse dividendbelasting
                 <input type="number" min="0" step="1" data-kind="foreign-dividend-withholding" value="${foreignDividendWithholding}">
             </label>
-            <button type="button" class="btn ghost row-remove" onclick="app.removeRow('${rowId}')">Verwijder</button>
+            <button type="button" class="btn ghost row-remove" onclick="app.removeRow('${rowId}')" aria-label="Verwijder">&times;</button>
         `;
         this.investmentsList.appendChild(node);
         this.attachBox3RowListeners(node);
@@ -262,7 +260,7 @@ const app = {
             <label>Bedrag
                 <input type="number" min="0" step="1" data-kind="amount" value="${amount}">
             </label>
-            <button type="button" class="btn ghost row-remove" onclick="app.removeRow('${rowId}')">Verwijder</button>
+            <button type="button" class="btn ghost row-remove" onclick="app.removeRow('${rowId}')" aria-label="Verwijder">&times;</button>
         `;
         this.otherAssetsList.appendChild(node);
         this.attachBox3RowListeners(node);
@@ -280,7 +278,7 @@ const app = {
             <label>Bedrag
                 <input type="number" min="0" step="1" data-kind="amount" value="${amount}">
             </label>
-            <button type="button" class="btn ghost row-remove" onclick="app.removeRow('${rowId}')">Verwijder</button>
+            <button type="button" class="btn ghost row-remove" onclick="app.removeRow('${rowId}')" aria-label="Verwijder">&times;</button>
         `;
         this.debtsList.appendChild(node);
         this.attachBox3RowListeners(node);
@@ -349,7 +347,7 @@ const app = {
             <label>Loonheffing
                 <input type="number" min="0" step="1" data-kind="income-withholding" value="${wageWithholding}">
             </label>
-            <button type="button" class="btn ghost row-remove" onclick="app.removeRow('${rowId}')">Verwijder</button>
+            <button type="button" class="btn ghost row-remove" onclick="app.removeRow('${rowId}')" aria-label="Verwijder">&times;</button>
         `;
         container.appendChild(node);
     },
@@ -367,7 +365,7 @@ const app = {
             <label>Bedrag
                 <input type="number" min="0" step="1" data-kind="deduction-amount" value="${amount}">
             </label>
-            <button type="button" class="btn ghost row-remove" onclick="app.removeRow('${rowId}')">Verwijder</button>
+            <button type="button" class="btn ghost row-remove" onclick="app.removeRow('${rowId}')" aria-label="Verwijder">&times;</button>
         `;
         container.appendChild(node);
     },
@@ -385,7 +383,7 @@ const app = {
             <label>Bedrag
                 <input type="number" min="0" step="1" data-kind="credit-amount" value="${amount}">
             </label>
-            <button type="button" class="btn ghost row-remove" onclick="app.removeRow('${rowId}')">Verwijder</button>
+            <button type="button" class="btn ghost row-remove" onclick="app.removeRow('${rowId}')" aria-label="Verwijder">&times;</button>
         `;
         container.appendChild(node);
     },
@@ -973,46 +971,34 @@ const app = {
                 const incomes = box1.incomes || [];
                 const incomeContainer = document.getElementById(`incomes-list-${i}`);
                 incomeContainer.innerHTML = "";
-                if (incomes.length === 0) {
-                    this.addIncomeRow(i);
-                } else {
-                    const totalWithholding = Number(member.wage_withholding || 0);
-                    const defaultPerRow = incomes.length > 0 ? totalWithholding / incomes.length : 0;
-                    incomes.forEach((income) => {
-                        this.addIncomeRow(
-                            i,
-                            income.type || "EMPLOYMENT",
-                            income.source || income.description || "",
-                            income.amount || 0,
-                            income.labor_credit || 0,
-                            defaultPerRow
-                        );
-                    });
-                }
+                const totalWithholding = Number(member.wage_withholding || 0);
+                const defaultPerRow = incomes.length > 0 ? totalWithholding / incomes.length : 0;
+                incomes.forEach((income) => {
+                    this.addIncomeRow(
+                        i,
+                        income.type || "EMPLOYMENT",
+                        income.source || income.description || "",
+                        income.amount || 0,
+                        income.labor_credit || 0,
+                        defaultPerRow
+                    );
+                });
 
                 const deductions = box1.deductions || [];
                 const deductionContainer = document.getElementById(`deductions-list-${i}`);
                 deductionContainer.innerHTML = "";
-                if (deductions.length === 0) {
-                    this.addDeductionRow(i);
-                } else {
-                    deductions.forEach((deduction) => {
-                        this.addDeductionRow(i, deduction.name || deduction.type || "Aftrekpost", deduction.amount || 0);
-                    });
-                }
+                deductions.forEach((deduction) => {
+                    this.addDeductionRow(i, deduction.name || deduction.type || "Aftrekpost", deduction.amount || 0);
+                });
 
                 document.getElementById(`has-aow-${i}`).checked = Boolean(box1.has_aow);
 
                 const creditsContainer = document.getElementById(`credits-list-${i}`);
                 creditsContainer.innerHTML = "";
                 const credits = box1.tax_credits || [];
-                if (credits.length === 0) {
-                    this.addCreditRow(i);
-                } else {
-                    credits.forEach((credit) => {
-                        this.addCreditRow(i, credit.name || "Heffingskorting", credit.amount || 0);
-                    });
-                }
+                credits.forEach((credit) => {
+                    this.addCreditRow(i, credit.name || "Heffingskorting", credit.amount || 0);
+                });
 
                 const box2 = member.box2 || {};
                 document.getElementById(`has-ab-${i}`).checked = Boolean(box2.has_substantial_interest);
@@ -1030,8 +1016,8 @@ const app = {
 
             this.savingsList.innerHTML = "";
             (box3.savings_accounts || []).forEach((row) => this.addSavingsRow(row.name || "", row.amount || 0, !!row.is_green));
-            if ((box3.savings_accounts || []).length === 0) {
-                this.addSavingsRow("", box3.savings || 0, false);
+            if ((box3.savings_accounts || []).length === 0 && (box3.savings || 0) > 0) {
+                this.addSavingsRow("", box3.savings, false);
             }
 
             this.investmentsList.innerHTML = "";
@@ -1042,10 +1028,10 @@ const app = {
                 row.dividend_withholding || 0,
                 row.foreign_dividend_withholding || 0,
             ));
-            if ((box3.investment_accounts || []).length === 0) {
+            if ((box3.investment_accounts || []).length === 0 && (box3.investments || 0) > 0) {
                 this.addInvestmentRow(
                     "",
-                    box3.investments || 0,
+                    box3.investments,
                     false,
                     payload.dividend_withholding_total || 0,
                     payload.foreign_dividend_withholding_total || 0,
@@ -1054,14 +1040,14 @@ const app = {
 
             this.otherAssetsList.innerHTML = "";
             (box3.other_assets_items || []).forEach((row) => this.addOtherAssetRow(row.name || "", row.amount || 0));
-            if ((box3.other_assets_items || []).length === 0) {
-                this.addOtherAssetRow("", box3.other_assets || 0);
+            if ((box3.other_assets_items || []).length === 0 && (box3.other_assets || 0) > 0) {
+                this.addOtherAssetRow("", box3.other_assets);
             }
 
             this.debtsList.innerHTML = "";
             (box3.debt_items || []).forEach((row) => this.addDebtRow(row.name || "", Math.abs(row.amount || 0)));
-            if ((box3.debt_items || []).length === 0) {
-                this.addDebtRow("", Math.abs(box3.debts || 0));
+            if ((box3.debt_items || []).length === 0 && (box3.debts || 0) > 0) {
+                this.addDebtRow("", Math.abs(box3.debts));
             }
 
             this.updateBox3Subtotals();
