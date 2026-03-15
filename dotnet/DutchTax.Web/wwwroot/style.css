@@ -266,7 +266,10 @@ select:focus {
 }
 
 .row-remove {
-    padding: 0.45rem 0.62rem;
+    padding: 0.3rem 0.5rem;
+    font-size: 1.1rem;
+    line-height: 1;
+    min-width: unset;
     white-space: nowrap;
 }
 
