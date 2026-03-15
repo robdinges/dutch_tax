@@ -1,5 +1,5 @@
 {
-  "saved_at": "2026-03-14T21:47:49.668969",
+  "saved_at": "2026-03-15T06:37:56.866566",
   "household_id": "LR",
   "data": {
     "box3_household": {
@@ -140,8 +140,8 @@
         "000000002": 0
       },
       "grondslag_voordeel_sparen_beleggen": {
-        "000000001": 270683,
-        "000000002": 12844
+        "000000001": 283527,
+        "000000002": 0
       },
       "ingehouden_buitenlandse_dividendbelasting": {
         "000000001": 4,
@@ -152,8 +152,8 @@
         "000000002": 0
       },
       "vrijstelling_groene_beleggingen": {
-        "000000001": 5359,
-        "000000002": 254
+        "000000001": 5613,
+        "000000002": 0
       }
     },
     "members": [
