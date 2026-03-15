@@ -62,7 +62,6 @@ http://127.0.0.1:8000
 
 - `DO_BESTAND.md`: actuele invoer, berekeningsstappen en outputvelden
 - `GUI_README.md`: UI-flow en schermuitleg
-- `FUNCTIONEEL_EN_OBJECTMODEL_PYTHON_NL.md`: functioneel ontwerp en domeinmodel
 - `LR_aangifte_opbouw.md`: casusdocumentatie in aangifte-opbouw
 - `CODE_STRUCTURE.md`: code-indeling voor ontwikkelaars
 
