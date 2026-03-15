@@ -4,7 +4,7 @@
 Frits is een alleenstaande (geen fiscaal partner) met looninkomsten,
 een eigen woning, spaarrekening, beleggingen en groene beleggingen.
 
-De invoer staat in submissions/FRITS.json; alle berekende velden
+De invoer staat in tests/frits_household_testdata.json; alle berekende velden
 worden vastgehouden als regressietestset: box 1, box 2, box 3, premies,
 voorheffingen, schijven, kortingen, verdeelde posten en het eindsaldo.
 """
@@ -15,7 +15,7 @@ from pathlib import Path
 
 from app import app
 
-INPUT_FILE = Path(__file__).parent / "submissions" / "FRITS.json"
+INPUT_FILE = Path(__file__).parent / "frits_household_testdata.json"
 
 
 class FritsHouseholdTests(unittest.TestCase):
