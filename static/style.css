@@ -320,6 +320,12 @@ select:focus {
     font-weight: 700;
 }
 
+.distribution-table input[readonly] {
+    background: #f0f4f6;
+    color: var(--muted);
+    cursor: not-allowed;
+}
+
 .step-status {
     color: var(--muted);
 }
