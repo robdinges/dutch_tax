@@ -2,6 +2,81 @@
 
 Deze handleiding legt uit hoe je `dotnet/DutchTax.Web` live zet.
 
+---
+
+## Optie C: Windows shared hosting (IIS) via FileZilla (meest voorkomend)
+
+Dit is de meest gebruikte methode als je een gewone webhostingpakket hebt met een `wwwroot` map.
+
+### Vereiste op de server
+
+- .NET 10 Hosting Bundle moet geïnstalleerd zijn op de server.
+- Vraag dit na bij je hostingprovider als je er niet zeker van bent.
+
+### C1. Publiceren op je eigen pc
+
+Open een terminal (PowerShell of Command Prompt) en ga naar de projectmap:
+
+```bash
+cd dotnet/DutchTax.Web
+```
+
+Publiceer de app voor Windows:
+
+```bash
+dotnet publish -c Release -r win-x64 --self-contained false -o ./publish
+```
+
+Na het publiceren staan alle benodigde bestanden in `dotnet/DutchTax.Web/publish/`.
+
+Controleer of de volgende bestanden aanwezig zijn:
+
+- `DutchTax.Web.dll`
+- `DutchTax.Web.deps.json`
+- `DutchTax.Web.runtimeconfig.json`
+- `web.config`
+- `wwwroot/`
+
+### C2. Uploaden via FileZilla
+
+1. Open FileZilla en verbind met je server (SFTP of FTP).
+2. Navigeer aan de rechterkant (server) naar `wwwroot/dutch_tax`.
+   - Als de map `dutch_tax` nog niet bestaat, maak hem aan via rechtermuisklik → **Aanmaken map**.
+3. Navigeer aan de linkerkant (jouw pc) naar de `publish/` map van het project.
+4. Selecteer **alle bestanden en mappen** in `publish/` (Ctrl+A).
+5. Sleep ze naar `wwwroot/dutch_tax` op de server, of klik rechts → **Uploaden**.
+
+> **Let op:** Kopieer de *inhoud* van `publish/` (niet de map zelf) naar `wwwroot/dutch_tax`.
+> Na het uploaden staat `web.config` direct in `wwwroot/dutch_tax/`, niet in een submap.
+
+### C3. IIS instelling controleren
+
+In je hostingpanel (bijv. Plesk, cPanel of direct in IIS):
+
+1. Zorg dat `dutch_tax` een **Virtual Application** is (niet alleen een map).
+   - In Plesk: Maak een nieuwe webtoepassing aan op het pad `/dutch_tax`.
+   - In IIS: Rechtermuisklik op de map → **Convert to Application**.
+2. Stel de **Application Pool** in op **No Managed Code** (want .NET beheert zichzelf).
+3. Geef de IIS-gebruiker (`IIS_IUSRS` of `IUSR`) **lees- en schrijfrechten** op de map.
+
+### C4. App testen
+
+Open je browser en ga naar:
+
+```
+https://www.jouwedomein.nl/dutch_tax/
+```
+
+Controleer ook de API:
+
+```
+https://www.jouwedomein.nl/dutch_tax/api/income-types
+```
+
+Dit moet een JSON-response geven. Als je een 500-fout of een lege pagina ziet, zie **Veelvoorkomende issues** onderaan.
+
+---
+
 ## 1) Eenmalige voorbereiding
 
 1. Installeer .NET 10 SDK op je ontwikkelmachine.

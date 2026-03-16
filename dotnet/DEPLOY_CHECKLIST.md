@@ -25,9 +25,21 @@ Controleer dat deze bestanden bestaan in `dotnet/DutchTax.Web/publish`:
 - `DutchTax.Web.dll`
 - `DutchTax.Web.deps.json`
 - `DutchTax.Web.runtimeconfig.json`
+- `web.config`
 - `wwwroot/`
 
-## 2) Upload via VS Code SFTP Extension
+## 2a) Upload via FileZilla (Windows shared hosting)
+
+1. Open FileZilla en verbind met je server.
+2. Navigeer op de server naar `wwwroot/dutch_tax` (maak de map aan als die nog niet bestaat).
+3. Navigeer op je eigen pc naar `dotnet/DutchTax.Web/publish`.
+4. Selecteer alle bestanden en mappen in `publish/` (Ctrl+A).
+5. Upload ze naar `wwwroot/dutch_tax` op de server.
+6. Controleer dat `web.config` aanwezig is in `wwwroot/dutch_tax/` na het uploaden.
+
+> In IIS: zorg dat `dutch_tax` is ingesteld als **Virtual Application** met Application Pool op **No Managed Code**.
+
+## 2b) Upload via VS Code SFTP Extension
 
 1. Open Command Palette.
 2. Run `SFTP: Upload Folder`.
@@ -37,21 +49,21 @@ Controleer dat deze bestanden bestaan in `dotnet/DutchTax.Web/publish`:
 ## 3) Herstart app op server
 
 - Linux/systemd: `sudo systemctl restart dutchtax`
-- IIS: recycle app pool / restart website
+- IIS: recycle app pool / restart website (of via hostingpanel)
 
 ## 4) Post-deploy checks
 
 Controleer in browser:
-- `/` laadt zonder 500-fout
-- `/api/income-types` geeft `200` + JSON
-- `/api/asset-types` geeft `200` + JSON
-- `/api/calculate` werkt via formulier
+- `/dutch_tax/` laadt zonder 500-fout
+- `/dutch_tax/api/income-types` geeft `200` + JSON
+- `/dutch_tax/api/calculate` werkt via formulier
 
 ## 5) Foutdiagnose
 
 - Linux logs: `journalctl -u dutchtax -f`
 - Nginx error log: `/var/log/nginx/error.log`
-- IIS: Event Viewer + stdout logs
+- IIS stdout logs: `wwwroot/dutch_tax/logs/stdout_*.log` (zet `stdoutLogEnabled="true"` in `web.config`)
+- IIS: Event Viewer → Windows Logs → Application
 
 ## 6) Security quick check
 
