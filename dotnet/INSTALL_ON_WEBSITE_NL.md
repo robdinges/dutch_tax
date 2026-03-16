@@ -13,6 +13,46 @@ Dit is de meest gebruikte methode als je een gewone webhostingpakket hebt met ee
 - .NET 10 Hosting Bundle moet geïnstalleerd zijn op de server.
 - Vraag dit na bij je hostingprovider als je er niet zeker van bent.
 
+> **Aanbevolen: doe eerst een snelle omgevingstest (zie C0) voordat je de volledige app uploadt.**
+
+### C0. Eerst testen: minimale probe app uploaden
+
+Voordat je de volledige app uploadt, is het verstandig om met een kleine testapp te controleren
+of de server überhaupt .NET ondersteunt. Dit bespaart veel debugtijd.
+
+**Stap 1** — Publiceer de probe app:
+
+```bash
+cd dotnet/DutchTax.Probe
+dotnet publish -c Release -r win-x64 --self-contained false -o ./publish
+```
+
+**Stap 2** — Upload via FileZilla naar `wwwroot/dutch_tax_probe` (nieuwe tijdelijke map).
+
+**Stap 3** — Stel `dutch_tax_probe` in als Virtual Application in IIS / je hostingpanel.
+
+**Stap 4** — Test in je browser:
+
+```
+https://www.jouwedomein.nl/dutch_tax_probe/probe
+```
+
+Verwacht antwoord:
+
+```json
+{ "status": "ok", "message": ".NET draait correct op deze server.", "dotnet": "10.x.x" }
+```
+
+| Wat je ziet | Actie |
+|---|---|
+| JSON zoals hierboven | ✅ Ga door naar **C1** |
+| `500.19` / `500.21` fout | ❌ Installeer .NET 10 Hosting Bundle op de server |
+| `502.5` of blanco pagina | ❌ Verkeerde .NET versie — controleer of Hosting Bundle 10 is |
+| `404` | ❌ Virtual Application niet correct ingesteld — zie C3 |
+
+Na een geslaagde test kun je `dutch_tax_probe` van de server verwijderen.
+Zie ook `dotnet/DutchTax.Probe/README.md` voor meer uitleg.
+
 ### C1. Publiceren op je eigen pc
 
 Open een terminal (PowerShell of Command Prompt) en ga naar de projectmap:
@@ -65,6 +105,12 @@ Open je browser en ga naar:
 
 ```
 https://www.jouwedomein.nl/dutch_tax/
+```
+
+Snelle health check (geeft JSON terug als de app draait):
+
+```
+https://www.jouwedomein.nl/dutch_tax/api/health
 ```
 
 Controleer ook de API:
@@ -213,12 +259,16 @@ IIS gebruikt `aspNetCore` module automatisch om `DutchTax.Web.dll` te starten.
 Na deploy:
 
 - Open `https://www.vandererve.com/dutch_tax/`
+- Snelle check: `https://www.vandererve.com/dutch_tax/api/health` → moet `{"status":"ok"}` teruggeven.
 - Controleer in browser network tab dat `/dutch_tax/api/income-types` en `/dutch_tax/api/calculate` 200 teruggeven.
 
 ## Veelvoorkomende issues
 
 - `dotnet: command not found` → .NET runtime/SDK ontbreekt op server.
+- `500.19` of `500.21` (IIS) → AspNetCoreModuleV2 ontbreekt — installeer .NET 10 Hosting Bundle.
+- `502.5` of blanco pagina → verkeerde .NET versie of `web.config` klopt niet.
+- `404` op `/dutch_tax/` → `dutch_tax` is niet ingesteld als Virtual Application in IIS.
 - 502 via Nginx → app draait niet of luistert op andere poort.
 - 500 fout → check logs:
   - Linux: `journalctl -u dutchtax -f`
-  - IIS: Event Viewer + stdout logs.
+  - IIS stdout logs: zet `stdoutLogEnabled="true"` in `web.config`, herstart, kijk in `wwwroot/dutch_tax/logs/`.
