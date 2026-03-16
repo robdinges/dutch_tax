@@ -21,6 +21,8 @@ if (!string.IsNullOrWhiteSpace(pathBase))
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
+app.MapGet("/api/health", () => Results.Json(new { status = "ok", app = "DutchTax.Web" }));
+
 app.MapGet("/api/income-types", () => Results.Json(new
 {
     types = new[]
