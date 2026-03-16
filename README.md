@@ -49,6 +49,7 @@ Buitenlandse bronbelasting op dividend wordt in dit programma bewust vereenvoudi
 ## Starten
 
 ```bash
+pip install -r requirements.txt
 python3 app.py
 ```
 
@@ -58,12 +59,35 @@ Open daarna:
 http://127.0.0.1:8000
 ```
 
+## Testen
+
+```bash
+pip install pytest
+python -m pytest tests/
+```
+
+## Projectstructuur
+
+```
+dutch_tax/
+├── dutch_tax/          # Python-pakket met domeinlogica
+│   ├── models.py       # Domeinmodellen
+│   ├── tax_brackets.py # Tarieven per belastingjaar
+│   └── tax_form.py     # Interactieve CLI-invoerflow
+├── static/             # CSS en JavaScript
+├── templates/          # HTML-templates (Jinja2)
+├── tests/              # Unittests en integratietests
+├── docs/               # Documentatie
+├── app.py              # Flask-webapp (startpunt)
+└── requirements.txt
+```
+
 ## Documentatie
 
-- `DO_BESTAND.md`: actuele invoer, berekeningsstappen en outputvelden
-- `GUI_README.md`: UI-flow en schermuitleg
-- `LR_aangifte_opbouw.md`: casusdocumentatie in aangifte-opbouw
-- `CODE_STRUCTURE.md`: code-indeling voor ontwikkelaars
+- `docs/DO_BESTAND.md`: actuele invoer, berekeningsstappen en outputvelden
+- `docs/GUI_README.md`: UI-flow en schermuitleg
+- `docs/LR_aangifte_opbouw.md`: casusdocumentatie in aangifte-opbouw
+- `docs/CODE_STRUCTURE.md`: code-indeling voor ontwikkelaars
 
 ## Disclaimer
 

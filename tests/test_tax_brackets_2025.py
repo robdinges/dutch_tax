@@ -5,7 +5,7 @@ import unittest
 from decimal import Decimal
 
 from app import compute_box1_bracket_breakdown
-from tax_brackets import get_tax_config
+from dutch_tax.tax_brackets import get_tax_config
 
 
 class TaxBrackets2025Tests(unittest.TestCase):

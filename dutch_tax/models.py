@@ -627,7 +627,7 @@ class TaxYearConfig:
 
 if __name__ == "__main__":
     # Import tax configuration from tax_brackets.py
-    from tax_brackets import get_latest_tax_config
+    from dutch_tax.tax_brackets import get_latest_tax_config
     
     # Create tax configuration for 2025
     tax_config = get_latest_tax_config()

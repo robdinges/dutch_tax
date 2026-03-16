@@ -4,7 +4,7 @@
 import unittest
 from decimal import Decimal
 
-from object_model import (
+from dutch_tax.models import (
     Deduction,
     IncomeSource,
     IncomeSourceType,
@@ -13,7 +13,7 @@ from object_model import (
     ResidencyStatus,
     calculate_eigenwoningforfait,
 )
-from tax_brackets import get_tax_config
+from dutch_tax.tax_brackets import get_tax_config
 
 
 class EigenwoningforfaitCalculationTests(unittest.TestCase):

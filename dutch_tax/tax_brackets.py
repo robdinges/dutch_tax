@@ -17,7 +17,7 @@ from typing import Dict
 # Import after ensuring object_model is available
 # Avoid circular imports by importing at function level if needed
 try:
-    from object_model import TaxYearConfig, TaxBracket
+    from dutch_tax.models import TaxYearConfig, TaxBracket
 except ImportError:
     # For testing tax_brackets.py standalone
     pass
@@ -237,6 +237,6 @@ Key Concepts:
 2025 Changes:
   - Bracket thresholds indexed for inflation
   - General tax credit increased to €2,917
-    - Box3 tax on deemed return configured at 35%
+    - Box3 tax on deemed return configured at 36%
   - Top marginal rate: 49.49% (on income above €1,011,724)
 """
