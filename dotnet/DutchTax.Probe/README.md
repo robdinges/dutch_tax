@@ -7,10 +7,56 @@ Gebruik dit project om te controleren of jouw hostingomgeving .NET ondersteunt,
 
 ## Stap 1 – Publiceren
 
+### Optie A: via GitHub Actions (aanbevolen)
+
+Push een wijziging naar `main` of start de workflow handmatig via
+**Actions → Deploy DutchTax.Probe naar externe site → Run workflow**.
+De workflow bouwt en uploadt de app automatisch zonder dat je lokaal
+hoeft te publiceren.
+
+Vereiste GitHub Secrets (éénmalig instellen via Settings → Secrets → Actions):
+
+| Secret | Beschrijving |
+|--------|--------------|
+| `FTP_SERVER` | Hostname van je FTP-server (bijv. `ftp.vandererve.com`) |
+| `FTP_USERNAME` | FTP-gebruikersnaam |
+| `FTP_PASSWORD` | FTP-wachtwoord |
+| `FTP_PROBE_DIR` | Serverpad waar de probe naartoe moet (bijv. `wwwroot/dutch_tax_probe/`) |
+
+### Optie B: lokaal publiceren (Windows / Linux)
+
 ```bash
 cd dotnet/DutchTax.Probe
 dotnet publish -c Release -r win-x64 --self-contained false -o ./publish
 ```
+
+### Optie C: lokaal publiceren op macOS (permissie-workaround)
+
+Op macOS kan `dotnet publish` falen met een permissiefout op de NuGet-cache:
+
+```
+Access to the path '/Users/.../.nuget/packages/.../...' is denied.
+Operation not permitted
+```
+
+Gebruik dan de `/tmp`-workaround:
+
+```bash
+rm -rf /tmp/DutchTax.Probe
+cp -R ./dotnet/DutchTax.Probe /tmp/DutchTax.Probe
+DOTNET_CLI_HOME=/tmp/dotnet_home \
+DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 \
+/usr/local/opt/dotnet/libexec/dotnet publish /tmp/DutchTax.Probe \
+  -c Release -r win-x64 --self-contained false \
+  -o /tmp/DutchTax.Probe/publish
+rm -rf ./dotnet/DutchTax.Probe/publish
+mkdir -p ./dotnet/DutchTax.Probe/publish
+cp -R /tmp/DutchTax.Probe/publish/. ./dotnet/DutchTax.Probe/publish/
+```
+
+Als de `/usr/local/opt/dotnet`-locatie niet klopt, gebruik dan het pad dat je terugkrijgt
+van `which dotnet` of het Homebrew-Cellar pad (bijv.
+`/usr/local/Cellar/dotnet/10.0.103/libexec/dotnet`).
 
 ## Stap 2 – Uploaden via FileZilla
 

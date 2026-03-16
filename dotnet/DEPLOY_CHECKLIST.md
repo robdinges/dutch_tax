@@ -2,7 +2,42 @@
 
 Gebruik deze checklist bij elke nieuwe release van `DutchTax.Web`.
 
+## 0) Via GitHub Actions (aanbevolen — geen lokale build nodig)
+
+Push naar `main` of start de workflow handmatig:
+**GitHub → Actions → Deploy DutchTax.Probe naar externe site → Run workflow**
+
+De workflow bouwt en uploadt `DutchTax.Probe` automatisch.
+Vereiste secrets: `FTP_SERVER`, `FTP_USERNAME`, `FTP_PASSWORD`, `FTP_PROBE_DIR`.
+Zie `dotnet/DutchTax.Probe/README.md` voor de volledige secretsinstructie.
+
+---
+
 ## 1) Build / publish lokaal
+
+### 1a) DutchTax.Probe (snelle omgevingstest)
+
+Normaal:
+
+```bash
+cd dotnet/DutchTax.Probe
+dotnet publish -c Release -r win-x64 --self-contained false -o ./publish
+```
+
+Op macOS: als je een permissiefout krijgt op de NuGet-cache, gebruik de `/tmp` workaround:
+
+```bash
+rm -rf /tmp/DutchTax.Probe
+cp -R ./dotnet/DutchTax.Probe /tmp/DutchTax.Probe
+DOTNET_CLI_HOME=/tmp/dotnet_home DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 \
+  /usr/local/Cellar/dotnet/10.0.103/libexec/dotnet publish /tmp/DutchTax.Probe \
+  -c Release -r win-x64 --self-contained false -o /tmp/DutchTax.Probe/publish
+rm -rf ./dotnet/DutchTax.Probe/publish
+mkdir -p ./dotnet/DutchTax.Probe/publish
+cp -R /tmp/DutchTax.Probe/publish/. ./dotnet/DutchTax.Probe/publish/
+```
+
+### 1b) DutchTax.Web (volledige app)
 
 Gebruik op deze Mac het absolute dotnet-pad:
 

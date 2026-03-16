@@ -1,0 +1,43 @@
+name: Deploy DutchTax.Probe naar externe site
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "dotnet/DutchTax.Probe/**"
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Publish DutchTax.Probe (win-x64)
+        run: |
+          dotnet publish dotnet/DutchTax.Probe/DutchTax.Probe.csproj \
+            -c Release \
+            -r win-x64 \
+            --self-contained false \
+            -o ./probe-publish
+
+      - name: Deploy via FTP naar dutch_tax_probe
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./probe-publish/
+          server-dir: ${{ secrets.FTP_PROBE_DIR }}
+          exclude: |
+            **/.git*
+            **/.git*/**
