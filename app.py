@@ -11,8 +11,8 @@ import subprocess
 
 from flask import Flask, jsonify, render_template, request
 
-from object_model import calculate_eigenwoningforfait
-from tax_brackets import get_latest_tax_config
+from dutch_tax.models import calculate_eigenwoningforfait
+from dutch_tax.tax_brackets import get_latest_tax_config
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "dutch-tax-calculator-secret"

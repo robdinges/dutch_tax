@@ -6,14 +6,10 @@
 echo "🇳🇱 Starting Dutch Tax Calculator GUI..."
 echo ""
 
-# Check if Flask is installed
-python3 -m pip list | grep -q Flask
-if [ $? -ne 0 ]; then
-    echo "Installing Flask..."
-    python3 -m pip install flask --quiet
-fi
+# Install dependencies
+python3 -m pip install -r requirements.txt --quiet
 
-echo "Starting Flask app on http://localhost:5000"
+echo "Starting Flask app on http://localhost:8000"
 echo "Press Ctrl+C to stop the server"
 echo ""
 

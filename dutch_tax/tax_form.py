@@ -8,11 +8,11 @@ Features smart validation, helpful hints, and a clean, modern layout.
 from decimal import Decimal
 from typing import Optional, List, Tuple
 import sys
-from object_model import (
+from dutch_tax.models import (
     Person, Household, IncomeSource, Asset, Deduction, TaxCredit,
     IncomeSourceType, AssetType, ResidencyStatus, AllocationStrategy
 )
-from tax_brackets import get_tax_config, get_latest_tax_config
+from dutch_tax.tax_brackets import get_tax_config, get_latest_tax_config
 
 
 class Colors:

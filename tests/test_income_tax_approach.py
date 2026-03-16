@@ -4,7 +4,7 @@
 import unittest
 from decimal import Decimal
 
-from object_model import (
+from dutch_tax.models import (
     Asset,
     AssetType,
     Deduction,
@@ -71,7 +71,7 @@ class IncomeTaxApproachTests(unittest.TestCase):
         household = Household(household_id="HHB", members=[person])
 
         # Box1 tax from bracket table where all 45,000 falls in first 19.06% and second for the excess.
-        from tax_brackets import get_tax_config
+        from dutch_tax.tax_brackets import get_tax_config
 
         config = get_tax_config(2025)
         box1_tax = person.compute_box1_tax(config.box1_brackets)

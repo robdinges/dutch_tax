@@ -7,13 +7,6 @@ __pycache__/
 
 .vscode/
 
-.dotnet_home/
-dotnet/DutchTax.Web/bin/
-dotnet/DutchTax.Web/obj/
-dotnet/DutchTax.Web/publish/
-dotnet/DutchTax.Probe/bin/
-dotnet/DutchTax.Probe/obj/
-dotnet/DutchTax.Probe/publish/
 submissions/
 # Saved web form submissions (input payload snapshots)
 

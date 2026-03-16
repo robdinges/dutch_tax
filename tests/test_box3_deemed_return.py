@@ -4,7 +4,7 @@
 import unittest
 from decimal import Decimal
 
-from object_model import (
+from dutch_tax.models import (
     AllocationStrategy,
     Asset,
     AssetType,
