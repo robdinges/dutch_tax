@@ -1,0 +1,19 @@
+{
+  "name": "dutch_tax",
+  "version": "1.0.0",
+  "description": "Deze applicatie rekent particuliere Nederlandse inkomstenbelasting door op basis van een vaste procesflow:",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.58.2"
+  }
+}
